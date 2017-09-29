@@ -40,7 +40,8 @@ Star.hr(9077)
 Star.hd(224750)
 Star.hip(25)
 ```
-3. Star closest to specific celestial coordinate
+3. Star closest to specific celestial coordinate.
+
 This is very useful to locate the closest star to user input.
 
 ```swift
@@ -57,6 +58,7 @@ Constellation.iau("Tau")
 Constellation.named("Orion")
 ```
 2. Constellation that contains specific celestial coordinate.
+
 This is very useful to locate the constellation that contains the region of user input.
 
   It is implemented as a category on `EquatorialCoordinate`. See [SpaceTime](https://github.com/DJBen/SpaceTime) repo for implementation and usage of coordinate classes.
