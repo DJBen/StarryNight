@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="12121" systemVersion="16G29" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
+    <device id="retina4_7" orientation="portrait">
+        <adaptation id="fullscreen"/>
+    </device>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="12089"/>
+        <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--View Controller-->
+        <scene sceneID="tne-QT-ifu">
+            <objects>
+                <viewController id="BYZ-38-t0r" customClass="ViewController" customModule="SpaceTimeDemo" customModuleProvider="target" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="y3c-jy-aDJ"/>
+                        <viewControllerLayoutGuide type="bottom" id="wfy-db-euE"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Current Judian Date: 2471234.5678" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsLetterSpacingToFitWidth="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="TEl-XQ-Dpm">
+                                <rect key="frame" x="16" y="52" width="343" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Current UTC Date: 2017-04-12 3:40" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsLetterSpacingToFitWidth="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="CpM-ME-bMx">
+                                <rect key="frame" x="16" y="81" width="343" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Current Coordinate: " lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsLetterSpacingToFitWidth="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="fQv-g5-MK2">
+                                <rect key="frame" x="16" y="110" width="343" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Local Sidereal Time: " lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsLetterSpacingToFitWidth="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Np0-Im-kqk">
+                                <rect key="frame" x="16" y="139" width="343" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Vega: " textAlignment="natural" lineBreakMode="wordWrap" numberOfLines="2" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="PXA-xF-CGN">
+                                <rect key="frame" x="16" y="168" width="343" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                        </subviews>
+                        <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="TEl-XQ-Dpm" firstAttribute="leading" secondItem="8bC-Xf-vdC" secondAttribute="leadingMargin" id="6iY-lo-oDQ"/>
+                            <constraint firstItem="TEl-XQ-Dpm" firstAttribute="trailing" secondItem="CpM-ME-bMx" secondAttribute="trailing" id="8ZF-XQ-aAT"/>
+                            <constraint firstItem="TEl-XQ-Dpm" firstAttribute="top" secondItem="y3c-jy-aDJ" secondAttribute="bottom" constant="32" id="DkR-JV-HwD"/>
+                            <constraint firstItem="fQv-g5-MK2" firstAttribute="trailing" secondItem="Np0-Im-kqk" secondAttribute="trailing" id="Hh5-xS-9Vj"/>
+                            <constraint firstItem="PXA-xF-CGN" firstAttribute="top" secondItem="Np0-Im-kqk" secondAttribute="bottom" constant="8" symbolic="YES" id="JfM-M0-xVJ"/>
+                            <constraint firstItem="TEl-XQ-Dpm" firstAttribute="leading" secondItem="CpM-ME-bMx" secondAttribute="leading" id="MTS-eK-Gpa"/>
+                            <constraint firstItem="fQv-g5-MK2" firstAttribute="top" secondItem="CpM-ME-bMx" secondAttribute="bottom" constant="8" symbolic="YES" id="Vg5-XS-oPK"/>
+                            <constraint firstItem="Np0-Im-kqk" firstAttribute="leading" secondItem="PXA-xF-CGN" secondAttribute="leading" id="WUw-Oz-3Hp"/>
+                            <constraint firstItem="fQv-g5-MK2" firstAttribute="leading" secondItem="Np0-Im-kqk" secondAttribute="leading" id="Zu1-Pr-WaY"/>
+                            <constraint firstItem="CpM-ME-bMx" firstAttribute="top" secondItem="TEl-XQ-Dpm" secondAttribute="bottom" constant="8" symbolic="YES" id="e5I-bs-Isv"/>
+                            <constraint firstItem="TEl-XQ-Dpm" firstAttribute="trailing" secondItem="8bC-Xf-vdC" secondAttribute="trailingMargin" id="eNX-Gp-cFz"/>
+                            <constraint firstItem="Np0-Im-kqk" firstAttribute="trailing" secondItem="PXA-xF-CGN" secondAttribute="trailing" id="jJv-12-r9Q"/>
+                            <constraint firstItem="CpM-ME-bMx" firstAttribute="trailing" secondItem="fQv-g5-MK2" secondAttribute="trailing" id="mce-3h-hgo"/>
+                            <constraint firstItem="Np0-Im-kqk" firstAttribute="top" secondItem="fQv-g5-MK2" secondAttribute="bottom" constant="8" symbolic="YES" id="qBZ-c1-wbb"/>
+                            <constraint firstItem="CpM-ME-bMx" firstAttribute="leading" secondItem="fQv-g5-MK2" secondAttribute="leading" id="x5f-K3-D4u"/>
+                        </constraints>
+                    </view>
+                    <connections>
+                        <outlet property="currentCoordinateLabel" destination="fQv-g5-MK2" id="bNF-UL-g4T"/>
+                        <outlet property="julianDateLabel" destination="TEl-XQ-Dpm" id="E1m-iC-pmi"/>
+                        <outlet property="lstLabel" destination="Np0-Im-kqk" id="pRa-go-Fnx"/>
+                        <outlet property="utcDateLabel" destination="CpM-ME-bMx" id="C9r-o6-ZvE"/>
+                        <outlet property="vegaLabel" destination="PXA-xF-CGN" id="sBw-RR-X1j"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="32.799999999999997" y="38.23088455772114"/>
+        </scene>
+    </scenes>
+</document>
