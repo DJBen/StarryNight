@@ -52,7 +52,7 @@ public struct SpectralType: CustomStringConvertible {
         self.rawType = str
         // some spectral type may have ambiguity e.g. G8III/IV
         // will remove anything after /
-        let unambiguousType = String(str.characters.prefix(while: { $0 != "/" }))
+        let unambiguousType = String(str.prefix(while: { $0 != "/" }))
         switch unambiguousType {
         case Regex("^(\\w)(\\d(?:\\.\\d)?)?((?:IV|Iab|Ia\\+?|Ib|I+|V)(?:-(?:IV|Iab|Ia\\+?|Ib|I+|V))?)?(.*)"):
             let match = Regex.lastMatch!

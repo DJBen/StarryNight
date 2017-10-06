@@ -29,7 +29,7 @@ class SpectralTypeTest: XCTestCase {
                 continue
             }
             // ignore extended spectral types
-            if ["C", "W", "S", "Y", "J", "N"].contains(spectralType.characters.first!) {
+            if ["C", "W", "S", "Y", "J", "N"].contains(spectralType.first!) {
                 continue
             }
             // ignore white dwarves

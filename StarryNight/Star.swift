@@ -145,10 +145,10 @@ public struct Star: Hashable, Equatable {
     }
 
     private init(row: Row) {
-        let identity = Star.Identity(id: row.get(dbInternalId), hipId: row.get(dbHip), hrId: row.get(dbHr), hdId: row.get(dbHd), gl: row.get(dbGl), bfDesig: row.get(dbBFDesignation), proper: row.get(dbProperName), constellationIAU: row.get(dbCon))
-        let coord = Vector3(row.get(dbX), row.get(dbY), row.get(dbZ))
-        let vel = Vector3(row.get(dbVx), row.get(dbVy), row.get(dbVz))
-        let phys = Star.PhysicalInfo(spect: row.get(dbSpect), apparentMagnitude: row.get(dbMag), absoluteMagnitude: row.get(dbAbsMag), luminosity: row.get(dbLum), distance: row.get(dbDist), coordinate: coord, motion: vel)
+        let identity = Star.Identity(id: try! row.get(dbInternalId), hipId: try! row.get(dbHip), hrId: try! row.get(dbHr), hdId: try! row.get(dbHd), gl: try! row.get(dbGl), bfDesig: try! row.get(dbBFDesignation), proper: try! row.get(dbProperName), constellationIAU: try! row.get(dbCon))
+        let coord = Vector3(try! row.get(dbX), try! row.get(dbY), try! row.get(dbZ))
+        let vel = Vector3(try! row.get(dbVx), try! row.get(dbVy), try! row.get(dbVz))
+        let phys = Star.PhysicalInfo(spect: try! row.get(dbSpect), apparentMagnitude: try! row.get(dbMag), absoluteMagnitude: try! row.get(dbAbsMag), luminosity: try! row.get(dbLum), distance: try! row.get(dbDist), coordinate: coord, motion: vel)
         self.init(identity: identity, physicalInfo: phys)
     }
 
@@ -186,7 +186,7 @@ public struct Star: Hashable, Equatable {
 
     private static func queryStar(_ query: Table) -> Star? {
         if let row = try! db.pluck(query) {
-            let id = row.get(dbInternalId)
+            let id = try! row.get(dbInternalId)
             if let cachedStar = cachedStars[id] {
                 return cachedStar
             }

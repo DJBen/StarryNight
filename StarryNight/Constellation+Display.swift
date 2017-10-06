@@ -128,7 +128,7 @@ extension Constellation {
             query = query.where(dbBorderCon == iAUName)
         }
         return Set<Constellation>(try! db.prepare(query).map { (row) -> Constellation in
-            let oppoCon = row.get(dbOppoCon)
+            let oppoCon = try! row.get(dbOppoCon)
             return Constellation.iau(oppoCon)!
         })
     }
@@ -165,6 +165,6 @@ public extension EquatorialCoordinate {
         let decDegrees = degrees(radians: precessed.declination)
         let query = borders.filter(dbLowRa <= raHours && dbHighRa > raHours && dbLowDec <= decDegrees).order(dbLowDec.desc).limit(1)
         let row = try! db.pluck(query)!
-        return Constellation.iau(row.get(dbBorderCon))!
+        return Constellation.iau(try! row.get(dbBorderCon))!
     }
 }

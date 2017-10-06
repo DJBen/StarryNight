@@ -15,7 +15,7 @@ private let constel = Table("constellations")
 private let dbName = Expression<String>("constellation")
 private let dbIAUName = Expression<String>("iau")
 private let dbGenitive = Expression<String>("genitive")
-private let constellationLinePath = Bundle(identifier: "com.Square.sihao.StarryNight")!.path(forResource: "constellation_lines", ofType: "dat")!
+private let constellationLinePath = Bundle(identifier: "com.squareup.sihao.StarryNight")!.path(forResource: "constellation_lines", ofType: "dat")!
 
 public struct Constellation: Hashable {
     public struct Line: CustomStringConvertible {
@@ -62,8 +62,8 @@ public struct Constellation: Hashable {
 
     public static var all: Set<Constellation> {
         for row in try! db.prepare(constel) {
-            let iau = row.get(dbIAUName)
-            let con = Constellation(name: row.get(dbName), iAUName: iau, genitive: row.get(dbGenitive))
+            let iau = try! row.get(dbIAUName)
+            let con = Constellation(name: try! row.get(dbName), iAUName: iau, genitive: try! row.get(dbGenitive))
             if cachedConstellations[iau] == nil {
                 cachedConstellations[iau] = con
             }
@@ -97,8 +97,8 @@ public struct Constellation: Hashable {
 
     private static func queryConstellation(_ query: Table) -> Constellation? {
         if let row = try! db.pluck(query) {
-            let con = Constellation(name: row.get(dbName), iAUName: row.get(dbIAUName), genitive: row.get(dbGenitive))
-            cachedConstellations[row.get(dbIAUName)] = con
+            let con = Constellation(name: try! row.get(dbName), iAUName: try! row.get(dbIAUName), genitive: try! row.get(dbGenitive))
+            cachedConstellations[try! row.get(dbIAUName)] = con
             return con
         }
         return nil
