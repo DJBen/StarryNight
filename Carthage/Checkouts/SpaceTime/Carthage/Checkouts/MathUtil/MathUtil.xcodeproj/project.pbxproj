@@ -20,6 +20,7 @@
 		FC63126B1F21DF9800FE23E0 /* MathUtil.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC6312451F21DF4500FE23E0 /* MathUtil.framework */; };
 		FC6312721F21DFD600FE23E0 /* VectorMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC6312711F21DFD600FE23E0 /* VectorMathTests.swift */; };
 		FC6312741F21E0EE00FE23E0 /* MathUtilTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC6312731F21E0EE00FE23E0 /* MathUtilTests.swift */; };
+		FCB2C1391F35BE82002288BE /* CompoundUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB2C1381F35BE82002288BE /* CompoundUnit.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,6 +50,7 @@
 		FC63126A1F21DF9800FE23E0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FC6312711F21DFD600FE23E0 /* VectorMathTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = VectorMathTests.swift; sourceTree = "<group>"; };
 		FC6312731F21E0EE00FE23E0 /* MathUtilTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MathUtilTests.swift; sourceTree = "<group>"; };
+		FCB2C1381F35BE82002288BE /* CompoundUnit.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CompoundUnit.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,6 +101,7 @@
 				FC6312531F21DF8E00FE23E0 /* Intersection.swift */,
 				FC6312541F21DF8E00FE23E0 /* SCNVector3+Util.swift */,
 				FC6312551F21DF8E00FE23E0 /* SphericalMath.swift */,
+				FCB2C1381F35BE82002288BE /* CompoundUnit.swift */,
 				FC6312561F21DF8E00FE23E0 /* VectorMath.swift */,
 				FC6312571F21DF8E00FE23E0 /* VectorMath+CoreMotion.swift */,
 				FC6312581F21DF8E00FE23E0 /* VectorMath+SceneKit.swift */,
@@ -233,6 +236,7 @@
 				FC63125C1F21DF8E00FE23E0 /* Intersection.swift in Sources */,
 				FC6312611F21DF8E00FE23E0 /* VectorMath+SceneKit.swift in Sources */,
 				FC63125E1F21DF8E00FE23E0 /* SphericalMath.swift in Sources */,
+				FCB2C1391F35BE82002288BE /* CompoundUnit.swift in Sources */,
 				FC63125D1F21DF8E00FE23E0 /* SCNVector3+Util.swift in Sources */,
 				FC63125A1F21DF8E00FE23E0 /* Double+Util.swift in Sources */,
 				FC6312601F21DF8E00FE23E0 /* VectorMath+CoreMotion.swift in Sources */,
@@ -446,6 +450,7 @@
 				FC63124F1F21DF4500FE23E0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		FC63126E1F21DF9800FE23E0 /* Build configuration list for PBXNativeTarget "MathUtilTests" */ = {
 			isa = XCConfigurationList;
@@ -454,6 +459,7 @@
 				FC6312701F21DF9800FE23E0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

@@ -18,13 +18,13 @@ public struct HorizontalCoordinate: ExpressibleByDictionaryLiteral {
         self.altitude = altitude
     }
 
-    public init(cartesian vec: Vector3, observerInfo info: LocationAndTime) {
+    public init(cartesian vec: Vector3, observerInfo info: ObserverLocationTime) {
         self.init(equatorialCoordinate: EquatorialCoordinate.init(cartesian: vec), observerInfo: info)
     }
 
-    public init(equatorialCoordinate eqCoord: EquatorialCoordinate, observerInfo info: LocationAndTime) {
+    public init(equatorialCoordinate eqCoord: EquatorialCoordinate, observerInfo info: ObserverLocationTime) {
         let radianLat = radians(degrees: Double(info.location.coordinate.latitude))
-        let hourAngle = SiderealTime.init(locationAndTime: info).hourAngle - eqCoord.rightAscension
+        let hourAngle = SiderealTime.init(observerLocationTime: info).hourAngle - eqCoord.rightAscension
         let sinAlt = sin(eqCoord.declination) * sin(radianLat) + cos(eqCoord.declination) * cos(radianLat) * cos(hourAngle)
         altitude = asin(sinAlt)
         let cosAzimuth = (sin(eqCoord.declination) - sinAlt * sin(radianLat)) / (cos(altitude) * cos(radianLat))
@@ -57,14 +57,14 @@ public extension EquatorialCoordinate {
     /// - Parameters:
     ///   - coord: horizontal coordinate
     ///   - info: location and time information about the observer
-    public init(horizontalCoordinate coord: HorizontalCoordinate, observerInfo info: LocationAndTime) {
+    public init(horizontalCoordinate coord: HorizontalCoordinate, observerInfo info: ObserverLocationTime) {
         let latitude = radians(degrees: info.location.coordinate.latitude)
         let sinDec = sin(coord.altitude) * sin(latitude) + cos(coord.altitude) * cos(latitude) * cos(coord.azimuth)
         let dec = asin(sinDec)
         let sinLha = -sin(coord.azimuth) * cos(coord.altitude) / cos(dec)
         let cosLha = (sin(coord.altitude) - sin(latitude) * sin(dec)) / (cos(dec) * cos(latitude))
         let lha = atan2(sinLha, cosLha)
-        let ra = SiderealTime.init(locationAndTime: info).hourAngle - lha
+        let ra = SiderealTime.init(observerLocationTime: info).hourAngle - lha
         self.init(rightAscension: ra, declination: dec, distance: 1)
     }
 }

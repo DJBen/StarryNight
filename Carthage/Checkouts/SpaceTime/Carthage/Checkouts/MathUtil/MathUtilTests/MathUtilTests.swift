@@ -25,4 +25,27 @@ class MathUtilTests: XCTestCase {
         let interp = Easing(startValue: 2.1, endValue: 7.5)
         XCTAssertEqual(interp.value(at: 0.85), 2.1 + (7.5 - 2.1) * 0.85)
     }
+
+    func testHmsConversion() {
+        let hms = HourMinuteSecond(value: 101.2875)
+        hms.decimalNumberFormatter = NumberFormatter()
+        XCTAssertEqual(hms.sign, 1)
+        XCTAssertEqual(hms.values[0], 6)
+        XCTAssertEqual(hms.values[1], 45)
+        XCTAssertEqualWithAccuracy(hms.values[2], 9, accuracy: 0.5)
+        XCTAssertEqualWithAccuracy(hms.value, 101.2875, accuracy: 1e-3)
+        XCTAssertEqual(hms.description, "6h 45m 9s")
+    }
+
+    func testDmsConversion() {
+        let dms = DegreeMinuteSecond(value: -26.432002)
+        dms.decimalNumberFormatter = NumberFormatter()
+        XCTAssertEqual(dms.sign, -1)
+        XCTAssertEqual(dms.values[0], 26)
+        XCTAssertEqual(dms.values[1], 25)
+        XCTAssertEqualWithAccuracy(dms.values[2], 55.2094, accuracy: 1e-2)
+        XCTAssertEqualWithAccuracy(dms.value, -26.432002, accuracy: 1e-3)
+        XCTAssertEqual(dms.description, "-26° 25′ 55″")
+    }
+
 }

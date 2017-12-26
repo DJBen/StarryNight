@@ -1,5 +1,5 @@
 //
-//  JulianDateTest.swift
+//  JulianDayTest.swift
 //  SpaceTime
 //
 //  Created by Ben Lu on 11/13/16.
@@ -9,7 +9,7 @@
 import XCTest
 @testable import SpaceTime
 
-class JulianDateTest: XCTestCase {
+class JulianDayTest: XCTestCase {
 
     let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -17,16 +17,16 @@ class JulianDateTest: XCTestCase {
         return calendar
     }()
 
-    func testDateToJulianDate() {
+    func testDateToJulianDay() {
         let components = DateComponents(calendar: calendar, timeZone: TimeZone(secondsFromGMT: 0), year: 2000, month: 1, day: 1, hour: 12)
         let date = calendar.date(from: components)!
-        let JD = JulianDate(date: date)
-        XCTAssertEqualWithAccuracy(JD.value, JulianDate.J2000.value, accuracy: 1e-6)
+        let JD = JulianDay(date: date)
+        XCTAssertEqual(JD.value, JulianDay.J2000.value, accuracy: 1e-6)
     }
 
-    func testJulianDateToDate() {
+    func testJulianDayToDate() {
         let JD = 2457660.5
-        let date = JulianDate(JD).date
+        let date = JulianDay(JD).date
         let component = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
         // A.D. 2016-Sep-29
         XCTAssertEqual(component.year, 2016)
@@ -37,16 +37,16 @@ class JulianDateTest: XCTestCase {
         XCTAssertEqual(component.second, 0)
     }
 
-    func testRegularDateToJulianDate() {
+    func testRegularDateToJulianDay() {
         let components = DateComponents(calendar: calendar, timeZone: TimeZone(secondsFromGMT: 0), year: 2017, month: 6, day: 20, hour: 5, minute: 27, second: 11)
         let date = components.date!
-        let jd = JulianDate(date: date)
-        XCTAssertEqualWithAccuracy(jd.value, 2457924.72721, accuracy: 1e-4)
+        let jd = JulianDay(date: date)
+        XCTAssertEqual(jd.value, 2457924.72721, accuracy: 1e-4)
     }
 
-    func testRegularJulianDateToDate() {
+    func testRegularJulianDayToDate() {
         let jd = 2457924.72721
-        let date = JulianDate(jd).date
+        let date = JulianDay(jd).date
         let component = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
         XCTAssertEqual(component.year, 2017)
         XCTAssertEqual(component.month, 6)
@@ -57,7 +57,7 @@ class JulianDateTest: XCTestCase {
     }
 
     func testDescription() {
-        let jd = JulianDate(2449430.6)
+        let jd = JulianDay(2449430.6)
         XCTAssertEqual(String(describing: jd), "<1994-03-19 02:24:00 +0000, JD 2449430.6>")
     }
 }
