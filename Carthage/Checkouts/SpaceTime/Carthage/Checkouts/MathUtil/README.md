@@ -28,11 +28,20 @@
 radians(degrees: 30)             // 0.523...
 degrees(radians: Double.Pi / 2)  // 90
 ```
-#### Angle-hour conversion
+#### Angle-hour conversion and formatting
 ```swift
 // Sirius' right ascension is 6h 45m 9s
-radians(hours: 6, minutes: 45, seconds: 9) // 101.2875
+let deg = degrees(hours: 6, minutes: 45, seconds: 9) // 101.2875
+
+let hms = HourMinuteSecond(value: deg)
+hms.decimalNumberFormatter = NumberFormatter()
+print(hms) // 6h 45m 9s
+
+// Antares' right ascension is −26.432002 degrees
+let dms = DegreeMinuteSecond(value: -26.432002)
+print(dms) // -26° 25′ 55″
 ```
+
 ### Matrix, Quaternion and Vector Arithmetics
 
 See documentation for [VectorMath](https://github.com/nicklockwood/VectorMath).

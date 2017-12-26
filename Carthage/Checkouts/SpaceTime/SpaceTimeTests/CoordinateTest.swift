@@ -29,9 +29,9 @@ class CoordinateTest: XCTestCase {
             declination: radians(degrees: -62.681),
             distance: 1.29)
         let converted = Vector3.init(equatorialCoordinate: sph)
-        XCTAssertEqualWithAccuracy(converted.x, -0.4700, accuracy: 1e-3)
-        XCTAssertEqualWithAccuracy(converted.y, -0.3600, accuracy: 1e-3)
-        XCTAssertEqualWithAccuracy(converted.z, -1.1461, accuracy: 1e-3)
+        XCTAssertEqual(converted.x, -0.4700, accuracy: 1e-3)
+        XCTAssertEqual(converted.y, -0.3600, accuracy: 1e-3)
+        XCTAssertEqual(converted.z, -1.1461, accuracy: 1e-3)
     }
 
     func testNearEpochSphericalToCylindricalConversion() {
@@ -41,12 +41,12 @@ class CoordinateTest: XCTestCase {
             distance: 1)
         let calendar = Calendar(identifier: .gregorian)
         let components = DateComponents(calendar: calendar, timeZone: TimeZone(abbreviation: "PST"), year: 2000, month: 1, day: 1, hour: 5)
-        let date = JulianDate(date: calendar.date(from: components)!)
+        let date = JulianDay(date: calendar.date(from: components)!)
         let location = CLLocation(latitude: CLLocationDegrees(degrees(degrees: 37, minutes: 46, seconds: 51)), longitude: CLLocationDegrees(-degrees(degrees: 122, minutes: 24, seconds: 47)))
-        let obs = LocationAndTime(location: location, timestamp: date)
+        let obs = ObserverLocationTime(location: location, timestamp: date)
         let cyl = HorizontalCoordinate(equatorialCoordinate: sph, observerInfo: obs)
-        XCTAssertEqualWithAccuracy(cyl.azimuth, radians(degrees: 351, minutes: 45, seconds: 21.84), accuracy: 1e-3)
-        XCTAssertEqualWithAccuracy(cyl.altitude, radians(degrees: 65, minutes: 37, seconds: 8.28), accuracy: 1e-3)
+        XCTAssertEqual(cyl.azimuth, radians(degrees: 351, minutes: 45, seconds: 21.84), accuracy: 1e-3)
+        XCTAssertEqual(cyl.altitude, radians(degrees: 65, minutes: 37, seconds: 8.28), accuracy: 1e-3)
     }
 
     func testSphericalToCylindricalConversion() {
@@ -60,8 +60,8 @@ class CoordinateTest: XCTestCase {
             distance: 1)
         let calendar = Calendar(identifier: .gregorian)
         let components = DateComponents(calendar: calendar, timeZone: TimeZone(abbreviation: "PST"), year: 2017, month: 1, day: 6, hour: 1, minute: 31, second: 30)
-        let date = JulianDate(date: calendar.date(from: components)!)
-        let obs = LocationAndTime(location:
+        let date = JulianDay(date: calendar.date(from: components)!)
+        let obs = ObserverLocationTime(location:
             CLLocation(
                 latitude: CLLocationDegrees(degrees(degrees: 37, minutes: 46, seconds: 51)),
                 longitude: CLLocationDegrees(-degrees(degrees: 122, minutes: 24, seconds: 47))
@@ -69,8 +69,8 @@ class CoordinateTest: XCTestCase {
             timestamp: date
         )
         let cyl = HorizontalCoordinate(equatorialCoordinate: sph, observerInfo: obs)
-        XCTAssertEqualWithAccuracy(cyl.azimuth, radians(degrees: 32, minutes: 41, seconds: 21.16), accuracy: 5e-3)
-        XCTAssertEqualWithAccuracy(cyl.altitude, radians(degrees: 55, minutes: 55, seconds: 30.18), accuracy: 5e-3)
+        XCTAssertEqual(cyl.azimuth, radians(degrees: 32, minutes: 41, seconds: 21.16), accuracy: 5e-3)
+        XCTAssertEqual(cyl.altitude, radians(degrees: 55, minutes: 55, seconds: 30.18), accuracy: 5e-3)
     }
 
     func testSouthernSphericalToCylindricalConversion() {
@@ -81,8 +81,8 @@ class CoordinateTest: XCTestCase {
             distance: 1)
         let calendar = Calendar(identifier: .gregorian)
         let components = DateComponents(calendar: calendar, timeZone: TimeZone(abbreviation: "PST"), year: 2017, month: 1, day: 6, hour: 2, minute: 27)
-        let date = JulianDate(date: calendar.date(from: components)!)
-        let obs = LocationAndTime(location:
+        let date = JulianDay(date: calendar.date(from: components)!)
+        let obs = ObserverLocationTime(location:
             CLLocation(
                 latitude: CLLocationDegrees(-33.9249),
                 longitude: CLLocationDegrees(18.4241)
@@ -90,8 +90,8 @@ class CoordinateTest: XCTestCase {
             timestamp: date
         )
         let cyl = HorizontalCoordinate(equatorialCoordinate: sph, observerInfo: obs)
-        XCTAssertEqualWithAccuracy(cyl.azimuth, radians(degrees: 180, minutes: 3, seconds: 48.13), accuracy: 5e-3)
-        XCTAssertEqualWithAccuracy(cyl.altitude, -radians(degrees: 39, minutes: 20, seconds: 54.56), accuracy: 5e-3)
+        XCTAssertEqual(cyl.azimuth, radians(degrees: 180, minutes: 3, seconds: 48.13), accuracy: 5e-3)
+        XCTAssertEqual(cyl.altitude, -radians(degrees: 39, minutes: 20, seconds: 54.56), accuracy: 5e-3)
     }
 
 }
