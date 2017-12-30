@@ -22,7 +22,7 @@ _StarryNight is all you need for curiosity towards stars and constellations._
 
 ### Carthage
 
-    github "DJBen/StarryNight" ~> 0.1.0
+    github "DJBen/StarryNight" ~> 0.3.0
 
 ## Usage
 
