@@ -41,11 +41,11 @@ class SiderealTimeTest: XCTestCase {
         let sidTime = SiderealTime(julianDay: date)
         let localSidTime = SiderealTime(observerLocationTime: locationTime)
         XCTAssertEqual(date.value, 2457756.645138889, accuracy: 1e-5)
-        XCTAssertEqual(sidTime.hour, 10 + 20 / 60.0 + 47.358 / 3600.0, accuracy: 1e-3)
-        let angle: Double = (18 + 15 / 60.0 + 58.614 / 3600.0) / 12 * Double.pi
-        XCTAssertEqual(localSidTime.hourAngle, angle, accuracy: 1e-3)
+        XCTAssertEqual(sidTime.hourAngle.wrappedValue, 10 + 20 / 60.0 + 47.358 / 3600.0, accuracy: 1e-3)
+        let hour: Double = (18 + 15 / 60.0 + 58.614 / 3600.0)
+        XCTAssertEqual(localSidTime.hourAngle.wrappedValue, hour, accuracy: 1e-3)
         let sidTime2 = SiderealTime(julianDay: 2457756.845138889)
-        XCTAssertEqual(sidTime2.hour, 15.15996, accuracy: 1e-3)
+        XCTAssertEqual(sidTime2.hourAngle.wrappedValue, 15.15996, accuracy: 1e-3)
     }
 
     func testSiderealTimeOffset() {
@@ -53,11 +53,11 @@ class SiderealTimeTest: XCTestCase {
         let localSidTime2 = SiderealTime(observerLocationTime: locationTime2)
         let localSidTime3 = SiderealTime(observerLocationTime: locationTime3)
 
-        XCTAssertEqual(localSidTime.offsetFromGreenwichMeanSiderealTime.hour, 118.7969 / 15, accuracy: 1e-5)
+        XCTAssertEqual(localSidTime.offsetFromGreenwichMeanSiderealTime.hourAngle.wrappedValue, 118.7969 / 15, accuracy: 1e-5)
         XCTAssertEqual(String(describing: localSidTime.offsetFromGreenwichMeanSiderealTime), "+07:55:11")
-        XCTAssertEqual(localSidTime2.offsetFromGreenwichMeanSiderealTime.hour, -122.462358 / 15, accuracy: 1e-5)
+        XCTAssertEqual(localSidTime2.offsetFromGreenwichMeanSiderealTime.hourAngle.wrappedValue, -122.462358 / 15, accuracy: 1e-5)
         XCTAssertEqual(String(describing: localSidTime2.offsetFromGreenwichMeanSiderealTime), "-08:09:50")
-        XCTAssertEqual(localSidTime3.offsetFromGreenwichMeanSiderealTime.hour, 9.32 / 15, accuracy: 1e-5)
+        XCTAssertEqual(localSidTime3.offsetFromGreenwichMeanSiderealTime.hourAngle.wrappedValue, 9.32 / 15, accuracy: 1e-5)
         XCTAssertEqual(String(describing: localSidTime3.offsetFromGreenwichMeanSiderealTime), "+00:37:16")
     }
 }

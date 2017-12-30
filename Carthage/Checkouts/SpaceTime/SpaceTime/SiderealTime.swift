@@ -10,77 +10,49 @@ import Foundation
 import CoreLocation
 import MathUtil
 
-fileprivate extension JulianDay {
-    /// GMST in hours and fraction of an hour
-    var greenwichMeanSiderealTime: Double {
-        let diff = value - JulianDay.J2000.value
-        // magic function comes from
-        // https://en.wikipedia.org/wiki/Sidereal_time
-        let gmst = 18.697374558 + 24.06570982441908 * diff
-        return gmst.truncatingRemainder(dividingBy: 24)
-    }
-}
-
 public struct SiderealTime: CustomStringConvertible {
-    private var offsetHours: Double = 0
+    private var offsetHours: HourAngle = 0.0
 
     /// Hours with fraction
-    public let hour: Double
-
-    public var hourMinuteSecond: (Int, Int, Double) {
-        let hour = Int(modf(self.hour).0)
-        let min = Int(modf(modf(self.hour).1 * 60).0)
-        let sec = modf(modf(modf(self.hour).1 * 60).1 * 60).0
-        return (hour, min, sec)
-    }
-
-    public var hourAngle: Double {
-        return radians(hours: hour)
-    }
+    public let hourAngle: HourAngle
 
     public var offsetFromGreenwichMeanSiderealTime: SiderealTimeOffset {
-        return SiderealTimeOffset(hour: offsetHours)
+        return SiderealTimeOffset(hourAngle: offsetHours)
     }
 
     public var description: String {
-        let (hour, min, sec) = hourMinuteSecond
-        return String(format: "%02d:%02d:%02d", hour, min, Int(sec))
+        let args = hourAngle.components.map { Int($0) }
+        return String(format: "%02d:%02d:%02d", args[0], args[1], args[2])
     }
 
-    public init(hour: Double) {
-        self.hour = hour
+    public init(hourAngle: HourAngle) {
+        self.hourAngle = hourAngle
     }
 
     public init(observerLocationTime locTime: ObserverLocationTime) {
-        offsetHours = locTime.location.coordinate.longitude / 15
-        hour = wrapHour(locTime.timestamp.greenwichMeanSiderealTime + offsetHours)
+        offsetHours = HourAngle(degreeAngle: DegreeAngle(locTime.location.coordinate.longitude))
+        hourAngle = locTime.timestamp.greenwichMeanSiderealTime + offsetHours
     }
 
-    /// Greenwich mean sidereal time at Julian Date
+    /// Initialize Greenwich mean sidereal time at Julian day.
+    ///
+    /// - Parameter julianDay: The julian day.
     public init(julianDay: JulianDay) {
-        hour = julianDay.greenwichMeanSiderealTime
+        hourAngle = julianDay.greenwichMeanSiderealTime
     }
 }
 
 public struct SiderealTimeOffset: CustomStringConvertible {
-    /// Hours with fraction
-    public let hour: Double
-
-    public var signHourMinuteSecond: (Int, Int, Int, Double) {
-        let sign = self.hour >= 0 ? 1 : -1
-        let posHour = abs(self.hour)
-        let hour = Int(modf(posHour).0)
-        let min = Int(modf(modf(posHour).1 * 60).0)
-        let sec = modf(modf(modf(posHour).1 * 60).1 * 60).0
-        return (sign, hour, min, sec)
-    }
+    /// Hours angle.
+    public let hourAngle: HourAngle
 
     public var description: String {
-        let (sign, hour, min, sec) = signHourMinuteSecond
-        return String(format: "\(sign == 1 ? "+" : "-")%02d:%02d:%02d", hour, min, Int(sec))
+        let args = hourAngle.components.map { Int($0) }
+        return String(format: "\(hourAngle.sign >= 0 ? "+" : "-")%02d:%02d:%02d", args[0], args[1], args[2])
     }
 
-    public init(hour: Double) {
-        self.hour = hour
+    public init(hourAngle: HourAngle) {
+        self.hourAngle = hourAngle
+        hourAngle.wrapMode = .none
     }
 }

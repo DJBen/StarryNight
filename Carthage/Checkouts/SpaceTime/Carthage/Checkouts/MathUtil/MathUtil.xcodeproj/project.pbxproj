@@ -7,6 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FC1B421E1FF4BF5C00779D12 /* Angle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC3BE2F21FF433C10020480C /* Angle.swift */; };
+		FC1B421F1FF4BF6200779D12 /* RadianAngle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC3BE2F01FF433BB0020480C /* RadianAngle.swift */; };
+		FC1B42201FF4BF6500779D12 /* DegreeAngle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC3BE2F41FF433CF0020480C /* DegreeAngle.swift */; };
+		FC1B42211FF4BF6700779D12 /* HourAngle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC3BE2F81FF4485F0020480C /* HourAngle.swift */; };
+		FC1B42231FF4C42E00779D12 /* AngleMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1B42221FF4C42E00779D12 /* AngleMath.swift */; };
+		FC1B42251FF4C94D00779D12 /* AngleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1B42241FF4C94D00779D12 /* AngleTests.swift */; };
+		FC3BE2FB1FF48FA30020480C /* CompoundAngle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC3BE2FA1FF48FA30020480C /* CompoundAngle.swift */; };
 		FC63124A1F21DF4500FE23E0 /* MathUtil.h in Headers */ = {isa = PBXBuildFile; fileRef = FC6312481F21DF4500FE23E0 /* MathUtil.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		FC6312591F21DF8E00FE23E0 /* CGVector+Util.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC6312501F21DF8E00FE23E0 /* CGVector+Util.swift */; };
 		FC63125A1F21DF8E00FE23E0 /* Double+Util.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC6312511F21DF8E00FE23E0 /* Double+Util.swift */; };
@@ -34,6 +41,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		FC1B42221FF4C42E00779D12 /* AngleMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AngleMath.swift; sourceTree = "<group>"; };
+		FC1B42241FF4C94D00779D12 /* AngleTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AngleTests.swift; sourceTree = "<group>"; };
+		FC3BE2F01FF433BB0020480C /* RadianAngle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadianAngle.swift; sourceTree = "<group>"; };
+		FC3BE2F21FF433C10020480C /* Angle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Angle.swift; sourceTree = "<group>"; };
+		FC3BE2F41FF433CF0020480C /* DegreeAngle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DegreeAngle.swift; sourceTree = "<group>"; };
+		FC3BE2F81FF4485F0020480C /* HourAngle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HourAngle.swift; sourceTree = "<group>"; };
+		FC3BE2FA1FF48FA30020480C /* CompoundAngle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompoundAngle.swift; sourceTree = "<group>"; };
 		FC6312451F21DF4500FE23E0 /* MathUtil.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = MathUtil.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC6312481F21DF4500FE23E0 /* MathUtil.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MathUtil.h; sourceTree = "<group>"; };
 		FC6312491F21DF4500FE23E0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -105,6 +119,12 @@
 				FC6312561F21DF8E00FE23E0 /* VectorMath.swift */,
 				FC6312571F21DF8E00FE23E0 /* VectorMath+CoreMotion.swift */,
 				FC6312581F21DF8E00FE23E0 /* VectorMath+SceneKit.swift */,
+				FC3BE2F21FF433C10020480C /* Angle.swift */,
+				FC1B42221FF4C42E00779D12 /* AngleMath.swift */,
+				FC3BE2FA1FF48FA30020480C /* CompoundAngle.swift */,
+				FC3BE2F01FF433BB0020480C /* RadianAngle.swift */,
+				FC3BE2F41FF433CF0020480C /* DegreeAngle.swift */,
+				FC3BE2F81FF4485F0020480C /* HourAngle.swift */,
 			);
 			path = MathUtil;
 			sourceTree = "<group>";
@@ -114,6 +134,7 @@
 			children = (
 				FC6312711F21DFD600FE23E0 /* VectorMathTests.swift */,
 				FC6312731F21E0EE00FE23E0 /* MathUtilTests.swift */,
+				FC1B42241FF4C94D00779D12 /* AngleTests.swift */,
 				FC63126A1F21DF9800FE23E0 /* Info.plist */,
 			);
 			path = MathUtilTests;
@@ -176,18 +197,19 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 0830;
-				LastUpgradeCheck = 0830;
+				LastUpgradeCheck = 0900;
 				ORGANIZATIONNAME = Sihao;
 				TargetAttributes = {
 					FC6312441F21DF4500FE23E0 = {
 						CreatedOnToolsVersion = 8.3.3;
 						DevelopmentTeam = 52RD2GH5DP;
-						LastSwiftMigration = 0830;
+						LastSwiftMigration = 0900;
 						ProvisioningStyle = Automatic;
 					};
 					FC6312651F21DF9800FE23E0 = {
 						CreatedOnToolsVersion = 8.3.3;
 						DevelopmentTeam = 52RD2GH5DP;
+						LastSwiftMigration = 0900;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -233,15 +255,21 @@
 			buildActionMask = 2147483647;
 			files = (
 				FC63125F1F21DF8E00FE23E0 /* VectorMath.swift in Sources */,
+				FC1B421E1FF4BF5C00779D12 /* Angle.swift in Sources */,
 				FC63125C1F21DF8E00FE23E0 /* Intersection.swift in Sources */,
 				FC6312611F21DF8E00FE23E0 /* VectorMath+SceneKit.swift in Sources */,
 				FC63125E1F21DF8E00FE23E0 /* SphericalMath.swift in Sources */,
 				FCB2C1391F35BE82002288BE /* CompoundUnit.swift in Sources */,
 				FC63125D1F21DF8E00FE23E0 /* SCNVector3+Util.swift in Sources */,
+				FC1B42201FF4BF6500779D12 /* DegreeAngle.swift in Sources */,
+				FC1B42211FF4BF6700779D12 /* HourAngle.swift in Sources */,
 				FC63125A1F21DF8E00FE23E0 /* Double+Util.swift in Sources */,
 				FC6312601F21DF8E00FE23E0 /* VectorMath+CoreMotion.swift in Sources */,
+				FC1B42231FF4C42E00779D12 /* AngleMath.swift in Sources */,
+				FC1B421F1FF4BF6200779D12 /* RadianAngle.swift in Sources */,
 				FC6312591F21DF8E00FE23E0 /* CGVector+Util.swift in Sources */,
 				FC63125B1F21DF8E00FE23E0 /* Easing.swift in Sources */,
+				FC3BE2FB1FF48FA30020480C /* CompoundAngle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -251,6 +279,7 @@
 			files = (
 				FC6312721F21DFD600FE23E0 /* VectorMathTests.swift in Sources */,
 				FC6312741F21E0EE00FE23E0 /* MathUtilTests.swift in Sources */,
+				FC1B42251FF4C94D00779D12 /* AngleTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -275,7 +304,9 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
@@ -283,7 +314,11 @@
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -329,7 +364,9 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
@@ -337,7 +374,11 @@
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -383,7 +424,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 3.0;
+				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
+				SWIFT_VERSION = 4.0;
 			};
 			name = Debug;
 		};
@@ -403,7 +445,8 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.squareup.sihao.MathUtil;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 3.0;
+				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
+				SWIFT_VERSION = 4.0;
 			};
 			name = Release;
 		};
@@ -415,7 +458,8 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.squareup.sihao.MathUtilTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 3.0;
+				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
+				SWIFT_VERSION = 4.0;
 			};
 			name = Debug;
 		};
@@ -427,7 +471,8 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.squareup.sihao.MathUtilTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 3.0;
+				SWIFT_SWIFT3_OBJC_INFERENCE = Default;
+				SWIFT_VERSION = 4.0;
 			};
 			name = Release;
 		};

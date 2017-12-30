@@ -18,7 +18,7 @@ class MathUtilTests: XCTestCase {
     }
 
     func testHourConversion() {
-        XCTAssertEqualWithAccuracy(radians(hours: 6, minutes: 45, seconds: 9), radians(degrees: 101.2875), accuracy: 1e-3)
+        XCTAssertEqual(radians(hours: 6, minutes: 45, seconds: 9), radians(degrees: 101.2875), accuracy: 1e-3)
     }
 
     func testInterpolation() {
@@ -32,8 +32,8 @@ class MathUtilTests: XCTestCase {
         XCTAssertEqual(hms.sign, 1)
         XCTAssertEqual(hms.values[0], 6)
         XCTAssertEqual(hms.values[1], 45)
-        XCTAssertEqualWithAccuracy(hms.values[2], 9, accuracy: 0.5)
-        XCTAssertEqualWithAccuracy(hms.value, 101.2875, accuracy: 1e-3)
+        XCTAssertEqual(hms.values[2], 9, accuracy: 0.5)
+        XCTAssertEqual(hms.value, 101.2875, accuracy: 1e-3)
         XCTAssertEqual(hms.description, "6h 45m 9s")
     }
 
@@ -43,9 +43,19 @@ class MathUtilTests: XCTestCase {
         XCTAssertEqual(dms.sign, -1)
         XCTAssertEqual(dms.values[0], 26)
         XCTAssertEqual(dms.values[1], 25)
-        XCTAssertEqualWithAccuracy(dms.values[2], 55.2094, accuracy: 1e-2)
-        XCTAssertEqualWithAccuracy(dms.value, -26.432002, accuracy: 1e-3)
+        XCTAssertEqual(dms.values[2], 55.2094, accuracy: 1e-2)
+        XCTAssertEqual(dms.value, -26.432002, accuracy: 1e-3)
         XCTAssertEqual(dms.description, "-26° 25′ 55″")
     }
 
+    func testNearZeroDmsConversion() {
+        let dms = DegreeMinuteSecond(value: -0.324)
+        dms.decimalNumberFormatter = NumberFormatter()
+        XCTAssertEqual(dms.sign, -1)
+        XCTAssertEqual(dms.values[0], 0)
+        XCTAssertEqual(dms.values[1], 19)
+        XCTAssertEqual(dms.values[2], 26.4, accuracy: 1e-2)
+        XCTAssertEqual(dms.value, -0.324, accuracy: 1e-3)
+        XCTAssertEqual(dms.description, "-0° 19′ 26″")
+    }
 }

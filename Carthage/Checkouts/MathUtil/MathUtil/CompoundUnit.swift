@@ -33,6 +33,7 @@ public class CompoundUnit: CustomStringConvertible {
     }
 }
 
+@available(*, deprecated)
 public class HourMinuteSecond: CompoundUnit {
 
     /// Initialize from degrees value
@@ -54,6 +55,7 @@ public class HourMinuteSecond: CompoundUnit {
     }
 }
 
+@available(*, deprecated)
 public class DegreeMinuteSecond: CompoundUnit {
 
     /// Initialize from degree value
@@ -62,7 +64,7 @@ public class DegreeMinuteSecond: CompoundUnit {
     public override init(value: Double) {
         let (degree, remainderMin) = modf(value)
         let (min, sec) = modf(remainderMin * 60)
-        let sign: Double = degree >= 0 ? 1 : -1
+        let sign: Double = degree >= 0 && min >= 0 && sec >= 0 ? 1 : -1
         super.init(sign: Int(sign), values: [sign * degree, sign * min, sign * sec * 60], conversion: 60)
     }
 

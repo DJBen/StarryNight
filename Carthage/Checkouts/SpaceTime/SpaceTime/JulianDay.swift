@@ -155,6 +155,17 @@ public struct JulianDay: CustomStringConvertible, ExpressibleByFloatLiteral, Com
     }
 }
 
+extension JulianDay {
+    /// GMST in hours and fraction of an hour
+    var greenwichMeanSiderealTime: HourAngle {
+        let diff = value - JulianDay.J2000.value
+        // magic function comes from
+        // https://en.wikipedia.org/wiki/Sidereal_time
+        let gmst = 18.697374558 + 24.06570982441908 * diff
+        return HourAngle(gmst.truncatingRemainder(dividingBy: 24))
+    }
+}
+
 extension Optional where Wrapped == JulianDay {
     public static func ~=(lhs: JulianDay?, rhs: JulianDay?) -> Bool {
         if lhs == rhs {

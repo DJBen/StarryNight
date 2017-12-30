@@ -7,12 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FC22B2C91FF359E5002AE044 /* EclipticCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC22B2C81FF359E5002AE044 /* EclipticCoordinate.swift */; };
+		FC22B2CB1FF35B11002AE044 /* EclipticUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC22B2CA1FF35B11002AE044 /* EclipticUtil.swift */; };
 		FC4D1E701FC2C43400011478 /* MathUtil.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC6312D81F22032000FE23E0 /* MathUtil.framework */; };
 		FC6312A71F22002600FE23E0 /* SpaceTime.h in Headers */ = {isa = PBXBuildFile; fileRef = FC6312A51F22002600FE23E0 /* SpaceTime.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		FC6312B31F2200AB00FE23E0 /* CLLocation+Transform.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC6312AD1F2200AB00FE23E0 /* CLLocation+Transform.swift */; };
 		FC6312B41F2200AB00FE23E0 /* EquatorialCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC6312AE1F2200AB00FE23E0 /* EquatorialCoordinate.swift */; };
 		FC6312B51F2200AB00FE23E0 /* HorizontalCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC6312AF1F2200AB00FE23E0 /* HorizontalCoordinate.swift */; };
-		FC6312B61F2200AB00FE23E0 /* JulianDate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC6312B01F2200AB00FE23E0 /* JulianDate.swift */; };
+		FC6312B61F2200AB00FE23E0 /* JulianDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC6312B01F2200AB00FE23E0 /* JulianDay.swift */; };
 		FC6312B71F2200AB00FE23E0 /* LocationAndTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC6312B11F2200AB00FE23E0 /* LocationAndTime.swift */; };
 		FC6312B81F2200AB00FE23E0 /* SiderealTime.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC6312B21F2200AB00FE23E0 /* SiderealTime.swift */; };
 		FC6312C21F2200B100FE23E0 /* SpaceTime.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC6312A21F22002600FE23E0 /* SpaceTime.framework */; };
@@ -62,13 +64,15 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		FC22B2C81FF359E5002AE044 /* EclipticCoordinate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EclipticCoordinate.swift; sourceTree = "<group>"; };
+		FC22B2CA1FF35B11002AE044 /* EclipticUtil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EclipticUtil.swift; sourceTree = "<group>"; };
 		FC6312A21F22002600FE23E0 /* SpaceTime.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SpaceTime.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC6312A51F22002600FE23E0 /* SpaceTime.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SpaceTime.h; sourceTree = "<group>"; };
 		FC6312A61F22002600FE23E0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FC6312AD1F2200AB00FE23E0 /* CLLocation+Transform.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "CLLocation+Transform.swift"; sourceTree = "<group>"; };
 		FC6312AE1F2200AB00FE23E0 /* EquatorialCoordinate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EquatorialCoordinate.swift; sourceTree = "<group>"; };
 		FC6312AF1F2200AB00FE23E0 /* HorizontalCoordinate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HorizontalCoordinate.swift; sourceTree = "<group>"; };
-		FC6312B01F2200AB00FE23E0 /* JulianDate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = JulianDate.swift; sourceTree = "<group>"; };
+		FC6312B01F2200AB00FE23E0 /* JulianDay.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = JulianDay.swift; sourceTree = "<group>"; };
 		FC6312B11F2200AB00FE23E0 /* LocationAndTime.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LocationAndTime.swift; sourceTree = "<group>"; };
 		FC6312B21F2200AB00FE23E0 /* SiderealTime.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SiderealTime.swift; sourceTree = "<group>"; };
 		FC6312BD1F2200B100FE23E0 /* SpaceTimeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpaceTimeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -143,11 +147,13 @@
 				FC6312A51F22002600FE23E0 /* SpaceTime.h */,
 				FC6312A61F22002600FE23E0 /* Info.plist */,
 				FC6312AD1F2200AB00FE23E0 /* CLLocation+Transform.swift */,
+				FC22B2C81FF359E5002AE044 /* EclipticCoordinate.swift */,
 				FC6312AE1F2200AB00FE23E0 /* EquatorialCoordinate.swift */,
 				FC6312AF1F2200AB00FE23E0 /* HorizontalCoordinate.swift */,
-				FC6312B01F2200AB00FE23E0 /* JulianDate.swift */,
+				FC6312B01F2200AB00FE23E0 /* JulianDay.swift */,
 				FC6312B11F2200AB00FE23E0 /* LocationAndTime.swift */,
 				FC6312B21F2200AB00FE23E0 /* SiderealTime.swift */,
+				FC22B2CA1FF35B11002AE044 /* EclipticUtil.swift */,
 			);
 			path = SpaceTime;
 			sourceTree = "<group>";
@@ -368,8 +374,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FC6312B61F2200AB00FE23E0 /* JulianDate.swift in Sources */,
+				FC22B2CB1FF35B11002AE044 /* EclipticUtil.swift in Sources */,
+				FC6312B61F2200AB00FE23E0 /* JulianDay.swift in Sources */,
 				FC6312B81F2200AB00FE23E0 /* SiderealTime.swift in Sources */,
+				FC22B2C91FF359E5002AE044 /* EclipticCoordinate.swift in Sources */,
 				FC6312B41F2200AB00FE23E0 /* EquatorialCoordinate.swift in Sources */,
 				FC6312B51F2200AB00FE23E0 /* HorizontalCoordinate.swift in Sources */,
 				FC6312B71F2200AB00FE23E0 /* LocationAndTime.swift in Sources */,

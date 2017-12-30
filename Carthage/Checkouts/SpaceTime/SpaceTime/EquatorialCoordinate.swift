@@ -14,30 +14,40 @@ public struct EquatorialCoordinate: ExpressibleByDictionaryLiteral {
 
     public let distance: Double
 
-    /// Right ascension in radians
-    public let rightAscension: Double
+    /// Right ascension, ranged from 0h to 24h.
+    public let rightAscension: HourAngle
 
-    /// Declination measured north or south of the celestial equator, in radians
-    public let declination: Double
+    /// Declination measured north or south of the celestial equator, ranged from -90° to 90°.
+    public let declination: DegreeAngle
 
-    // http://www.geom.uiuc.edu/docs/reference/CRC-formulas/node42.html
+
+    /// Initialize equatorial coordinate with cartesian vector defined as follows.
+    ///
+    /// - +x towards α = 0 degrees, α = 0.0 hours (the vernal equinox)
+    /// - +y towards δ = 0 degrees, α = 6.0 hours
+    /// - +z: towards δ = +90.0 degrees (north celestial pole)
+    ///
+    /// - Parameter cartesian: The cartesian vector.
+    /// - seealso: http://www.geom.uiuc.edu/docs/reference/CRC-formulas/node42.html
     public init(cartesian vec: Vector3) {
         distance = sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z)
-        declination = Double.pi / 2 - acos(vec.z / distance)
-        rightAscension = wrapAngle(atan2(vec.y, vec.x))
+        declination = DegreeAngle(radianAngle: RadianAngle(Double.pi / 2 - acos(vec.z / distance)))
+        declination.wrapMode = .range_180
+        rightAscension = HourAngle(radianAngle: RadianAngle(atan2(vec.y, vec.x)))
     }
 
-    public init(rightAscension: Double, declination: Double, distance: Double) {
-        self.rightAscension = wrapAngle(rightAscension)
+    public init(rightAscension: HourAngle, declination: DegreeAngle, distance: Double) {
+        self.rightAscension = rightAscension
         self.declination = declination
         self.distance = distance
+        self.declination.wrapMode = .range_180
     }
 
     public init(dictionary: [String: Double]) {
         if let raDeg = dictionary["raDeg"], let decDeg = dictionary["decDeg"] {
-            self.init(rightAscension: radians(degrees: raDeg), declination: radians(degrees: decDeg), distance: 1)
+            self.init(rightAscension: HourAngle(degreeAngle: DegreeAngle(raDeg)), declination: DegreeAngle(decDeg), distance: 1)
         } else if let ra = dictionary["ra"], let dec = dictionary["dec"] {
-            self.init(rightAscension: ra, declination: dec, distance: 1)
+            self.init(rightAscension: HourAngle(radianAngle: RadianAngle(ra)), declination: DegreeAngle(radianAngle: RadianAngle(dec)), distance: 1)
         } else {
             fatalError("Supply (raDeg, decDeg) or (ra, dec) as keys when initializing EquatorialCoordinate")
         }
@@ -53,9 +63,9 @@ public struct EquatorialCoordinate: ExpressibleByDictionaryLiteral {
 public extension Vector3 {
     /// Initialize a Cartesian with equatorial coordinate.
     ///
-    /// - +x towards \delta = 0 degrees, \alpha = 0.0 hours (the vernal equinox)
-    /// - +y towards \delta = 0 degrees, \alpha = 6.0 hours
-    /// - +z: towards \delta = +90.0 degrees (north celestial pole)
+    /// - +x towards α = 0 degrees, α = 0.0 hours (the vernal equinox)
+    /// - +y towards δ = 0 degrees, α = 6.0 hours
+    /// - +z: towards δ = +90.0 degrees (north celestial pole)
     ///
     /// - Parameter coord: The equatorial coordinate
     public init(equatorialCoordinate coord: EquatorialCoordinate) {
@@ -99,6 +109,6 @@ public extension EquatorialCoordinate {
             cos(c)
         ).transpose
         let x2 = r * x1
-        return EquatorialCoordinate(rightAscension: atan2(x2.y, x2.x), declination: asin(x2.z), distance: distance)
+        return EquatorialCoordinate(rightAscension: HourAngle(radianAngle: RadianAngle(atan2(x2.y, x2.x))), declination: DegreeAngle(radianAngle: RadianAngle(asin(x2.z))), distance: distance)
     }
 }
