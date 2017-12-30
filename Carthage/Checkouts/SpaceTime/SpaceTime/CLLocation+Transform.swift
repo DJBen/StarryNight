@@ -17,8 +17,8 @@ public extension CLLocation {
         // meridian radius
         let R_Eb: Double = 6356752
         let e = sqrt(R_Ea * R_Ea - R_Eb * R_Eb) / R_Ea
-        let φ = radians(degrees: coordinate.latitude)
-        let λ = radians(degrees: coordinate.longitude)
+        let φ = RadianAngle(degreeAngle: DegreeAngle(coordinate.latitude)).value
+        let λ = RadianAngle(degreeAngle: DegreeAngle(coordinate.longitude)).value
         let Ne = R_Ea / sqrt(1 - e * e * pow(sin(φ), 2))
         return Vector3(
             (Ne + altitude) * cos(φ) * cos(λ),
@@ -29,15 +29,15 @@ public extension CLLocation {
 
     /// The transform that rotates ECEF coordinate to NED coordinate at given timestamp and location
     public var ecefToLocalNedTransform: Matrix4 {
-        let φ = radians(degrees: coordinate.latitude)
-        let λ = radians(degrees: coordinate.longitude)
+        let φ = RadianAngle(degreeAngle: DegreeAngle(coordinate.latitude)).value
+        let λ = RadianAngle(degreeAngle: DegreeAngle(coordinate.longitude)).value
         return Matrix4(rotation: Vector4(0, 1, 0, φ + Double.pi / 2)) * Matrix4(rotation: Vector4(0, 0, 1, -λ))
     }
 
     // UNTESTED
     var ecefToLocalEnuTransform: Matrix4 {
-        let φ = radians(degrees: coordinate.latitude)
-        let λ = radians(degrees: coordinate.longitude)
+        let φ = RadianAngle(degreeAngle: DegreeAngle(coordinate.latitude)).value
+        let λ = RadianAngle(degreeAngle: DegreeAngle(coordinate.longitude)).value
         return Matrix4(rotation: Vector4(1, 0, 0, Double.pi / 2 - φ)) * Matrix4(rotation: Vector4(0, 0, 1, Double.pi / 2 + λ))
     }
 }

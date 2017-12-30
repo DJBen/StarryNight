@@ -165,7 +165,7 @@ public struct Star: Hashable, Equatable {
     ///   - magCutoff: Maximum magnitude to consider. Any star dimmer than the given magnitude (greater numerically) will be ignored. If set to `nil`, no such filtering takes place.
     ///   - angle: Maximum angular distance to consider.
     /// - Returns: The closest star to a given cartesian coordinate.
-    public static func closest(to coordinate: Vector3, maximumMagnitude magCutoff: Double? = nil, maximumAngularDistance angle: Double? = nil) -> Star? {
+    public static func closest(to coordinate: Vector3, maximumMagnitude magCutoff: Double? = nil, maximumAngularDistance angle: RadianAngle? = nil) -> Star? {
         let xSqr = (dbX / dbDist - coordinate.x) * (dbX / dbDist - coordinate.x)
         let ySqr = (dbY / dbDist - coordinate.y) * (dbY / dbDist - coordinate.y)
         let zSqr = (dbZ / dbDist - coordinate.z) * (dbZ / dbDist - coordinate.z)
@@ -173,7 +173,7 @@ public struct Star: Hashable, Equatable {
         let cutoff = magCutoff ?? Double.greatestFiniteMagnitude
         var query = stars.filter(dbMag < cutoff && dbInternalId > 0)
         if let ang = angle {
-            let maxDistSqr = pow(asin(ang / 2) * 2, 2)
+            let maxDistSqr = pow(asin(ang.wrappedValue / 2) * 2, 2)
             query = query.where(distanceSqr < maxDistSqr)
         }
         query = query.order(distanceSqr).limit(1)

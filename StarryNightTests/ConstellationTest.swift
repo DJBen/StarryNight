@@ -20,7 +20,7 @@ class ConstellationTest: XCTestCase {
     }
     
     func testPointToConstellation() {
-        let coord = EquatorialCoordinate.init(rightAscension: 1.547, declination: 0.129, distance: 1)
+        let coord = EquatorialCoordinate.init(rightAscension: HourAngle(radianAngle: RadianAngle(1.547)), declination: DegreeAngle(radianAngle: RadianAngle(0.129)), distance: 1)
         XCTAssertEqual(coord.constellation, Constellation.iau("Ori"))
         for star in Star.magitudeLessThan(2) {
             let coord = EquatorialCoordinate(cartesian: star.physicalInfo.coordinate)

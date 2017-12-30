@@ -29,6 +29,7 @@ public struct ObserverLocationTime {
 
     /// The transformation from celestial coordinate (RA, DEC) to North-East-Down coordinate (azi, elev) at the given ECEF coordinate (lat, lon) at the current time.
     public var localViewTransform: Matrix4 {
-        return location.ecefToLocalNedTransform * Matrix4.init(rotation: Vector4(0, 0, 1, -SiderealTime(julianDay: timestamp).hourAngle))
+        let hourAngle = SiderealTime(julianDay: timestamp).hourAngle
+        return location.ecefToLocalNedTransform * Matrix4.init(rotation: Vector4(0, 0, 1, -RadianAngle(hourAngle: hourAngle).wrappedValue))
     }
 }

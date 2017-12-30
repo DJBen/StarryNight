@@ -9,8 +9,10 @@
 
 ## Overview
 
-- Astronomy coordinate conversion. Conversion among [equatorial coordinate](https://en.wikipedia.org/wiki/Equatorial_coordinate_system) (right ascension and declination), [horizontal coordinate](https://en.wikipedia.org/wiki/Horizontal_coordinate_system) (azimuth and altitude) and their corresponding Cartesian equivalents
+- Conversion among [equatorial coordinate](https://en.wikipedia.org/wiki/Equatorial_coordinate_system) (right ascension and declination), [horizontal coordinate](https://en.wikipedia.org/wiki/Horizontal_coordinate_system) (azimuth and altitude),
+[ecliptic coordinate](https://en.wikipedia.org/wiki/Ecliptic_coordinate_system) (longitude and latitude) and their corresponding Cartesian equivalents.
 - Calculate [Julian Day](https://en.wikipedia.org/wiki/Julian_day) and [Local sidereal time](https://en.wikipedia.org/wiki/Sidereal_time).
+- High precision calculation of the [obliquity of ecliptic](https://en.wikipedia.org/wiki/Ecliptic) good to 0″.04 / 1000 years over 10000 years.
 - Matrix / Quaternion transformation from celestial coordinate system to local tangent plane. Supports [North-East-Down](https://en.wikipedia.org/wiki/North_east_down) coordinate from [earth-centered, earth-fixed](https://en.wikipedia.org/wiki/ECEF) coordinate system for any given longitude, latitude and timestamp.
 
 ## Demo
@@ -23,7 +25,7 @@ It showcases several useful scenarios.
 
 ### Carthage
 
-    github "DJBen/SpaceTime" ~> 0.2.0
+    github "DJBen/SpaceTime" ~> 0.4.0
 
 ## Usage
 Equatorial to horizontal coordinate:
@@ -33,6 +35,14 @@ let locTime = ObserverLocationTime(location: location, timestamp: JulianDay.now)
 let vegaCoord = EquatorialCoordinate(rightAscension: radians(hours: 18, minutes: 36, seconds: 56.33635), declination: radians(degrees: 38, minutes: 47, seconds: 1.2802), distance: 1)
 // Azimuth and altitude of Vega
 let vegaAziAlt = HorizontalCoordinate.init(equatorialCoordinate: vegaCoord, observerInfo: locTime)
+```
+Ecliptic coordinate of Pollux at standard equinox of J2000.0.
+```swift
+let ra = DegreeAngle(116.328942)
+let dec = DegreeAngle(28.026183)
+let eclipticCoord = EclipticCoordinate(longitude: ra, latitude: dec, distance: 1, julianDay: .J2000)
+eclipticCoord.longitude.wrappedValue // 113.21563
+eclipticCoord.latitude.wrappedValue // 6.68417
 ```
 Greenwich Mean Sidereal Time:
 ```swift
@@ -44,4 +54,4 @@ Local Apparent Sidereal Time:
 let locTime = ObserverLocationTime(location: location, timestamp: JulianDay.now)
 let localSidTime = SiderealTime.init(observerLocationTime: locTime)
 ```
-More use cases can be found in the source.
+More use cases can be found in the source and test cases.
