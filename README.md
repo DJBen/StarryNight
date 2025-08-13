@@ -20,7 +20,7 @@ Add StarryNight to your project by adding the following dependency to your `Pack
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/YourOrg/StarryNight.git", from: "1.0.0")
+    .package(url: "https://github.com/DJBen/StarryNight.git", from: "1.0.0"),
 ]
 ```
 
