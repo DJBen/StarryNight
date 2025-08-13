@@ -1,0 +1,75 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "Reality Composer Pro Version 2.0 (448.120.2)"
+    }
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def "SkySphere" (
+        active = true
+        prepend references = @SkySphere.usdz@
+    )
+    {
+        float3 xformOp:scale = (1, 1, 1)
+
+        over "SkySphere_mat"
+        {
+            token cullMode = "unspecified" (
+                allowedTokens = ["unspecified", "none", "front", "back"]
+            )
+            asset inputs:SkySphere_Texture = @milkyway_2020_4k_cube.exr@ (
+                customData = {
+                    dictionary realitykit = {
+                        float2 positionInSubgraph = (-754.4517, 71.84726)
+                        float2 sizeInSubgraph = (188.5, 53)
+                        int stackingOrderInSubgraph = 399
+                    }
+                }
+            )
+            token outputs:mtlx:surface.connect = </Root/SkySphere/SkySphere_mat/UnlitSurface.outputs:out>
+            token outputs:surface.connect = </Root/SkySphere/SkySphere_mat/UsdPreviewSurface.outputs:surface>
+            int ui:nodegraph:realitykit:subgraphOutputs:stackingOrder = 396
+
+            over "RealityKitTexture2D_1"
+            {
+                int ui:nodegraph:node:stackingOrder = 391
+            }
+
+            over "RealityKitTexture2D"
+            {
+                int ui:nodegraph:node:stackingOrder = 392
+            }
+
+            over "Absval"
+            {
+                int ui:nodegraph:node:stackingOrder = 396
+            }
+
+            over "Ifgreater"
+            {
+                int ui:nodegraph:node:stackingOrder = 394
+            }
+
+            over "UnlitSurface" (
+                active = true
+            )
+            {
+                int ui:nodegraph:node:stackingOrder = 395
+            }
+
+            def Shader "UsdPreviewSurface" (
+                active = false
+            )
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                token outputs:surface
+            }
+        }
+    }
+}
+

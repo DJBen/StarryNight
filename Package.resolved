@@ -1,0 +1,42 @@
+{
+  "originHash" : "6bd650e665258b60a4a9e24002956b5ad630fc09fe68b8f292ec619d76bf1b47",
+  "pins" : [
+    {
+      "identity" : "ch3",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/DJBen/Ch3.git",
+      "state" : {
+        "branch" : "fix-compilation",
+        "revision" : "ab0c4d6351bfd966ecb6bd73f95fe569624a038d"
+      }
+    },
+    {
+      "identity" : "satellitekit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/gavineadie/SatelliteKit.git",
+      "state" : {
+        "revision" : "0fe6999809e86e6f9358e76a0da2e44a7f1c258b",
+        "version" : "2.1.1"
+      }
+    },
+    {
+      "identity" : "sqlite.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stephencelis/SQLite.swift.git",
+      "state" : {
+        "revision" : "392dd6058624d9f6c5b4c769d165ddd8c7293394",
+        "version" : "0.15.4"
+      }
+    },
+    {
+      "identity" : "swift-toolchain-sqlite",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-toolchain-sqlite",
+      "state" : {
+        "revision" : "b626d3002773b1a1304166643e7f118f724b2132",
+        "version" : "1.0.4"
+      }
+    }
+  ],
+  "version" : 3
+}

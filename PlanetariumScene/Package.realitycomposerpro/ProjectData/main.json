@@ -1,0 +1,11 @@
+{
+  "pathsToIds" : {
+    "PlanetariumScene\/Sources\/PlanetariumScene\/PlanetariumScene.rkassets\/Scene.usda" : "4A0D411C-C224-41C3-9ABA-842FBB2F42F6",
+    "PlanetariumScene\/Sources\/PlanetariumScene\/PlanetariumScene.rkassets\/Untitled%20Scene.usda" : "4201D5E6-4DF2-4EDC-8DA4-CEB969F5A28D"
+  },
+  "projectID" : 2850847184609421848,
+  "uuidToIntID" : {
+    "4201D5E6-4DF2-4EDC-8DA4-CEB969F5A28D" : -1298847138487179231,
+    "4A0D411C-C224-41C3-9ABA-842FBB2F42F6" : -3208841127230603924
+  }
+}

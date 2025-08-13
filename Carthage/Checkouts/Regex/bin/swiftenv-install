@@ -1,7 +1,0 @@
-#!/bin/sh
-
-if [ -f ".swift-version" ] || [ -n "$SWIFT_VERSION" ]; then
-  swiftenv install -s
-else
-  swiftenv rehash
-fi

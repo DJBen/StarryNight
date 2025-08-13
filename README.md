@@ -1,84 +1,153 @@
-![Header image](https://github.com/DJBen/StarryNight/raw/master/External%20Assets/S-Green.png)
+![Title image](S-Green.png)
 
 # StarryNight
-[![Language](https://img.shields.io/badge/Swift-4.0-orange.svg?style=flat)](https://swift.org)
-[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
-[![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-4BC51D.svg?style=flat)](https://github.com/Carthage/Carthage)
-[![Build Status](https://travis-ci.org/DJBen/StarryNight.svg?branch=master)](https://travis-ci.org/DJBen/StarryNight)
+High performance star catalog and constellation data layer backed by SQLite and H3 index to power planetarium and star charts.
 
-## Overview
-_StarryNight is all you need for curiosity towards stars and constellations._
+## Features
 
-- Database of 15000+ stars within 7th magnitude.
-  - [Star Catalogs](https://en.wikipedia.org/wiki/Star_catalogue) including HR, HD, HIP, [Gould](https://en.wikipedia.org/wiki/Gould_designation) and [Bayer](https://en.wikipedia.org/wiki/Bayer_designation)-[Flamsteed](https://en.wikipedia.org/wiki/Flamsteed_designation) designations.
-  - Celestial coordinate and proper motion.
-  - Visual and absolute magnitude, luminance, spectral type, binary star info, and other physical properties.
-- Extended Constellation support.
-  - Position query and inverse position query.
-  - Constellation line and constellation border.
-  - Abbreviation, genitive and etymology.
+- **Multi-level Detail Star Catalog**: Stars are grouped into 4 levels for different zoom levels: brightest 300 (up to mag 3.5), H3 level 0 (up to mag 6.1), H3 level 1 (up to mag 8.0), H3 level 2 (up to mag 21). At any time only up to ~300 of stars will be rendered within the viewport.
+- **H3 Spatial Indexing**: Efficient spatial queries using Uber's H3 hexagonal hierarchical spatial index
+- **Comprehensive Catalogs**: Includes Hipparcos, Henry Draper, Harvard Revised catalogs
+- **Constellation Data**: Full IAU constellation boundaries and traditional connection lines
+- **Star Names**: Proper names, Bayer-Flamsteed designations, and catalog numbers
+- **Spectral Classification**: Stellar spectral types for accurate color rendering
 
-## Installation
+## Quick Start
 
-### Carthage
+### Swift Package Manager Integration
 
-    github "DJBen/StarryNight" ~> 0.3.0
-
-## Usage
-
-### Stars
-
-1. All stars brighter than...
+Add StarryNight to your project by adding the following dependency to your `Package.swift`:
 
 ```swift
-Star.magitudeLessThan(7)
+dependencies: [
+    .package(url: "https://github.com/YourOrg/StarryNight.git", from: "1.0.0")
+]
 ```
-2. Star with specific designation.
+
+Or add it through Xcode:
+1. File → Add Package Dependencies
+2. Enter the repository URL
+3. Add to your target
+
+### Basic Usage
 
 ```swift
-Star.hr(9077)
-Star.hd(224750)
-Star.hip(25)
-```
-3. Star closest to specific celestial coordinate.
+import StarryNight
+import SatelliteKit
 
-This is very useful to locate the closest star to user input.
+// Initialize the star manager
+let starManager = StarManager()
+
+// Get the brightest stars for display
+let brightStars = starManager.brightestStars()
+
+// Get stars up to magnitude 6.0 (naked eye limit)
+let visibleStars = starManager.stars(maximumMagnitude: 6.0)
+
+// Search for a specific star
+let searchResults = starManager.searchStars(matching: "Sirius")
+
+// Get detailed star information
+if let starId = searchResults.first?.id {
+    let starInfo = starManager.starInfo(forId: starId)
+    print("Star: \(starInfo?.properName ?? "Unknown")")
+}
+```
+
+### Common Query Examples
+
+#### Working with Star Data
 
 ```swift
-let coord = Vector3.init(equatorialCoordinate: EquatorialCoordinate.init(rightAscension: radians(hours: 5, minutes: 20), declination: radians(degrees: 10), distance: 1)).normalized()
-Star.closest(to: coord, maximumMagnitude: 2.5)
-// Bellatrix
+// Get stars for a specific view (viewport-based query)
+let viewport = [
+    (latitude: 40.0, longitude: -74.0),  // New York area
+    (latitude: 41.0, longitude: -74.0),
+    (latitude: 41.0, longitude: -73.0),
+    (latitude: 40.0, longitude: -73.0)
+]
+let starsInView = starManager.stars(inViewport: viewport, maximumMagnitude: 5.0)
+
+// Find the closest star to a coordinate
+let coordinate = Vector(x: 0.5, y: 0.5, z: 0.7)
+let nearestStar = starManager.closestStar(
+    to: coordinate, 
+    maximumMagnitude: 6.0, 
+    maximumAngularDistance: 0.1
+)
+
+// Get stars by H3 spatial indexing
+let h3Stars = starManager.stars(forH3Level: 2, maximumMagnitude: 4.0)
 ```
 
-### Constellations
-
-1. Constellation with name or [IAU symbol](https://www.iau.org/public/themes/constellations/).
-```swift
-Constellation.iau("Tau")
-Constellation.named("Orion")
-```
-2. Constellation that contains specific celestial coordinate.
-
-This is very useful to locate the constellation that contains the region of user input.
-
-  It is implemented as a category on `EquatorialCoordinate`. See [SpaceTime](https://github.com/DJBen/SpaceTime) repo for implementation and usage of coordinate classes.
-
-```swift
-let coord = EquatorialCoordinate.init(rightAscension: 1.547, declination: 0.129, distance: 1)
-coord.constellation
-// Orion
-```
-
-3. Neighboring constellations and centers.
+#### Working with Constellations
 
 ```swift
-// Get a set of neighboring constellations
-Constellation.iau("Ori").neighbors
-// Get the coordinate of center(s) of current constellation
-Constellation.iau("Ori").displayCenters
+// Get all constellations
+let allConstellations = starManager.allConstellations()
+
+// Find a specific constellation
+let orion = starManager.constellation(iau: "ORI")
+let ursa = starManager.constellation(named: "Ursa Major")
+
+// Get constellation connection lines for drawing
+if let constellation = orion {
+    let lines = starManager.constellationLines(for: constellation)
+    // Use lines to draw constellation patterns
+}
+
+// Find neighboring constellations
+if let constellation = orion {
+    let neighbors = starManager.neighbors(for: constellation)
+}
 ```
 
-  *Note*: `displayCenters` returns an array of one element for all constellations except Serpens, which will include two elements - one center for Serpens Caput and the other for Serpens Cauda.
+#### Star Naming and Identifiers
 
-## Remarks
-Data extracted from [HYG database](https://github.com/astronexus/HYG-Database) and processed into SQLite. The star catalog has been trimmed to 7th magnitude to reduce file size. Feel free to download the full catalog and import into SQLite whenever you see fit.
+```swift
+// Stars can have multiple naming systems
+let star = starManager.star(withId: 12345)
+if let starInfo = star?.info {
+    print("Hipparcos: \(starInfo.hipparcos ?? 0)")
+    print("Henry Draper: \(starInfo.henryDraper ?? 0)")
+    print("Harvard Revised: \(starInfo.harvardRevised ?? 0)")
+    print("Proper name: \(starInfo.properName ?? "None")")
+    
+    // Bayer-Flamsteed designations (e.g., "α Orionis")
+    if let bf = starInfo.bayerFlamsteed {
+        print("Designation: \(bf.description)")
+    }
+}
+```
+
+#### Performance Considerations
+
+```swift
+// For real-time applications, use appropriate magnitude limits
+// Brightest 300 stars - always fast
+let brightStars = starManager.brightestStars()
+
+// For zoomed out views, use higher magnitude limits
+let allVisibleStars = starManager.stars(maximumMagnitude: 6.0)
+
+// For detailed views, you can go fainter but expect more data
+let faintStars = starManager.stars(maximumMagnitude: 9.0)
+
+// Use H3 indexing for spatial queries when possible
+let localStars = starManager.stars(
+    inH3Cell: "8428309ffffffff", 
+    level: 2, 
+    maximumMagnitude: 7.0
+)
+```
+
+### Thread Safety
+
+All StarManager operations are thread-safe and marked as `Sendable`. The underlying SQLite database supports concurrent reads.
+
+## Sources and transformations
+The stars DB comes from [HYG database](https://www.astronexus.com/projects/hyg), available as csv.
+
+## License
+
+StarryNight is available under the MIT license. See the LICENSE file for more info.
