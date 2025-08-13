@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SatelliteKit
 
 /// Protocol defining the star management interface
 public protocol StarManaging: Sendable {
@@ -28,7 +27,7 @@ public protocol StarManaging: Sendable {
     func stars(inViewport vertices: [(latitude: Double, longitude: Double)], maximumMagnitude magCutoff: Double?) -> [Star]
     
     /// Find the closest star to a given cartesian coordinate
-    func closestStar(to coordinate: Vector, maximumMagnitude magCutoff: Double?, maximumAngularDistance angularDistance: Double?) -> Star?
+    func closestStar(to coordinate: SIMD3<Double>, maximumMagnitude magCutoff: Double?, maximumAngularDistance angularDistance: Double?) -> Star?
     
     /// Search for stars by name or catalog identifier
     func searchStars(matching name: String) -> [Star]

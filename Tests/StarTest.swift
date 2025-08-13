@@ -8,7 +8,6 @@
 
 import XCTest
 @testable import StarryNight
-import SatelliteKit
 
 final class StarTest: XCTestCase {
     
@@ -114,7 +113,7 @@ final class StarTest: XCTestCase {
     func testClosestStar() throws {
         // Test closestStar function at north pole with different magnitude limits
         // North pole coordinates: (0, 0, 1)
-        let northPoleCoordinate = Vector(0, 0, 1)
+        let northPoleCoordinate = SIMD3<Double>(0, 0, 1)
         
         // Find closest star with magnitude limit of 4.0 (brighter stars only)
         let maybeNorthStar = starManager.closestStar(
@@ -136,7 +135,7 @@ final class StarTest: XCTestCase {
     func testClosestStarSouthPole() throws {
         // Test closestStar function at south pole with different magnitude limits
         // South pole coordinates: (0, 0, -1)
-        let southPoleCoordinate = Vector(0, 0, -1)
+        let southPoleCoordinate = SIMD3<Double>(0, 0, -1)
         
         // Find closest star with magnitude limit of 1.0 (very bright stars only)
         let maybeStar1 = starManager.closestStar(

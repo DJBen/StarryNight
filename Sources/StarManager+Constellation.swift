@@ -1,5 +1,4 @@
 import Foundation
-import SatelliteKit
 @preconcurrency import SQLite
 
 extension StarManager {
@@ -133,12 +132,12 @@ extension StarManager {
 }
 
 extension StarManager {
-    public func displayCenter(for constellation: Constellation) -> Vector? {
+    public func displayCenter(for constellation: Constellation) -> SIMD3<Double>? {
         return constellationCenter[constellation.iAUName]
     }
 
-    public func displayCenters(for constellations: [Constellation]) async -> [Constellation: Vector] {
-        var result = [Constellation: Vector]()
+    public func displayCenters(for constellations: [Constellation]) async -> [Constellation: SIMD3<Double>] {
+        var result = [Constellation: SIMD3<Double>]()
         for constellation in constellations {
             if constellation.iAUName == "Ser1" || constellation.iAUName == "Ser2" || constellation.iAUName == "Ser" {
                 if let ser1 = self.constellation(iau: "Ser1"), let ser1Center = constellationCenter["Ser1"] {

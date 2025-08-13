@@ -33,7 +33,6 @@ Or add it through Xcode:
 
 ```swift
 import StarryNight
-import SatelliteKit
 
 // Initialize the star manager
 let starManager = StarManager()

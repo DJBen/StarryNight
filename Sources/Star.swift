@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import SatelliteKit
 import SQLite
 
 /// Core star data structure containing essential rendering information
@@ -19,13 +18,13 @@ public struct Star: Hashable, Equatable, @unchecked Sendable {
     /// The Cartesian coordinates of the star, in a system based on the equatorial coordinates as seen from Earth. 
     /// +X is in the direction of the vernal equinox (at epoch 2000), +Z towards the north celestial pole, 
     /// and +Y in the direction of R.A. 6 hours, declination 0 degrees.
-    public let coordinate: Vector
+    public let coordinate: SIMD3<Double>
     /// The star's spectral class (simplified from spectral type)
     public let spectralClass: String?
     /// Optional detailed information about the star (loaded on demand)
     public var info: StarInfo?
     
-    public init(id: Int, magnitude: Double, coordinate: Vector, spectralClass: String?, info: StarInfo? = nil) {
+    public init(id: Int, magnitude: Double, coordinate: SIMD3<Double>, spectralClass: String?, info: StarInfo? = nil) {
         self.id = id
         self.magnitude = magnitude
         self.coordinate = coordinate

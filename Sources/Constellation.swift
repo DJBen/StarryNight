@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import SatelliteKit
 
 public struct Constellation: Hashable, Identifiable, @unchecked Sendable {
     public struct Line: CustomStringConvertible, Sendable {
@@ -37,7 +36,7 @@ public struct Constellation: Hashable, Identifiable, @unchecked Sendable {
     public let iAUName: String
     public let genitive: String
     /// A unit vector pointing to the center of the constellation
-    public let center: Vector
+    public let center: SIMD3<Double>
 
     public var localizedName: String {
         return NSLocalizedString(name, bundle: .module, comment: "")
@@ -48,7 +47,7 @@ public struct Constellation: Hashable, Identifiable, @unchecked Sendable {
         name: String,
         iAUName: String,
         genitive: String,
-        center: Vector
+        center: SIMD3<Double>
     ) {
         self.id = id
         self.name = name
