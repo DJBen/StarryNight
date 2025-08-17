@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import StarryNight
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -15,9 +16,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Create window
         window = UIWindow(frame: UIScreen.main.bounds)
-        
+
+        let starManager = try! StarManager()
+
         // Create and set root view controller
-        let PlanetariumViewController = PlanetariumViewController()
+        let PlanetariumViewController = PlanetariumViewController(starManager: starManager)
         window?.rootViewController = PlanetariumViewController
         
         // Make window visible

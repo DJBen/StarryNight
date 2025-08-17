@@ -2,14 +2,31 @@ import UIKit
 import RealityKit
 import ARKit
 import Combine
+import StarryNight
 
 class PlanetariumViewController: UIViewController {
+    private let starManager: any StarManaging
+
     private var arView: ARView!
     private var sceneAnchor: AnchorEntity?
     private var cameraController: PlanetariumCameraController!
+    private var starRenderer: StarRenderer!
 
+    init(starManager: any StarManaging) {
+        self.starManager = starManager
+
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        // Initialize star renderer
+        starRenderer = StarRenderer()
         
         // Initialize camera controller
         cameraController = PlanetariumCameraController()
@@ -18,9 +35,10 @@ class PlanetariumViewController: UIViewController {
         // Configure the ARView
         setupARView()
         
-        // Load and display the Scene.usdz
+        // Load and display the Scene.usdz and stars
         Task { @MainActor in
             try await loadScene()
+            await loadAndDisplayStars()
         }
     }
     
@@ -105,6 +123,28 @@ class PlanetariumViewController: UIViewController {
         let nadirMarker = ModelEntity(mesh: markerMesh, materials: [nadirMaterial])
         nadirMarker.position = SIMD3<Float>(0, 0, -markerRadius)
         anchor.addChild(nadirMarker)
+    }
+    
+    private func loadAndDisplayStars() async {
+        // Load stars in background with magnitude limit for better performance
+        await Task.detached { [weak self] in
+            guard let self = self else { return }
+            // Start with magnitude 4.5 for good performance, can be increased later
+            await self.starRenderer.loadStars(from: self.starManager, maximumMagnitude: 4.5)
+        }.value
+        
+        // Create star point cloud entity on main thread
+        do {
+            let starPointCloudEntity = try starRenderer.createStarPointCloudEntity()
+            
+            // Add stars to the scene
+            guard let anchor = sceneAnchor else { return }
+            anchor.addChild(starPointCloudEntity)
+            
+            print("Added star point cloud to the scene")
+        } catch {
+            print("Failed to create star point cloud: \(error)")
+        }
     }
     
     override var prefersStatusBarHidden: Bool {
