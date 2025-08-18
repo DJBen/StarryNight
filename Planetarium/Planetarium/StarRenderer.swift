@@ -31,7 +31,7 @@ class StarRenderer {
         self.maximumMagnitude = maximumMagnitude
         
         // Load stars with magnitude filter for better performance
-        self.stars = starManager.stars(maximumMagnitude: maximumMagnitude)
+        self.stars = starManager.brightestStars()
         print("Loaded \(stars.count) stars for rendering (magnitude ≤ \(maximumMagnitude))")
     }
     
@@ -48,17 +48,16 @@ class StarRenderer {
         
         for star in stars {
             // Normalize the coordinate to unit sphere (virtual globe surface)
-            let coord = star.coordinate
-            let magnitude = sqrt(coord.x * coord.x + coord.y * coord.y + coord.z * coord.z)
-            let normalizedCoord = SIMD3<Float>(
-                Float(coord.x / magnitude),
-                Float(coord.y / magnitude), 
-                Float(coord.z / magnitude)
+            let coord = simd_normalize(star.coordinate)
+            let convertedCoord = SIMD3<Float>(
+                x: Float(coord.x),
+                y: Float(coord.z),
+                z: Float(-coord.y)
             )
-            
+
             // Scale to desired distance from camera
-            let position = normalizedCoord * sphereRadius
-            
+            let position = convertedCoord * sphereRadius
+
             // Calculate star size based on magnitude (smaller for dimmer stars)
             let normalizedMagnitude = max(0, min(1, (6.0 - star.magnitude) / 8.0))
             let starSize = Float(0.01 + normalizedMagnitude * 0.04) // Very small spheres
@@ -130,7 +129,7 @@ class StarRenderer {
     /// Reload stars with a different magnitude limit
     func reloadStars(from starManager: any StarManaging, maximumMagnitude: Double) async {
         await Task.detached { [weak self] in
-            self?.loadStars(from: starManager, maximumMagnitude: maximumMagnitude)
+            self?.loadStars(from: starManager)
         }.value
     }
     
@@ -145,9 +144,4 @@ class StarRenderer {
         // For now, we'll just update the internal value
         // In a more advanced implementation, we could update vertex buffers dynamically
     }
-}
-
-enum StarRendererError: Error {
-    case metalNotAvailable
-    case shaderNotFound
 }

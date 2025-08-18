@@ -5,6 +5,7 @@ import Combine
 
 protocol PlanetariumCameraControllerDelegate: AnyObject {
     func cameraController(_ controller: PlanetariumCameraController, didUpdateViewport corners: [(latitude: Float, longitude: Float)])
+    func cameraController(_ controller: PlanetariumCameraController, didUpdateFOV fov: Float)
 }
 
 class PlanetariumCameraController {
@@ -212,6 +213,9 @@ class PlanetariumCameraController {
         var component = cameraEntity.components[PerspectiveCameraComponent.self] ?? PerspectiveCameraComponent()
         component.fieldOfViewInDegrees = currentFOV
         cameraEntity.components.set(component)
+        
+        // Notify delegate of FOV change
+        delegate?.cameraController(self, didUpdateFOV: currentFOV)
     }
     
     private func updateMomentum(deltaTime: TimeInterval) {
