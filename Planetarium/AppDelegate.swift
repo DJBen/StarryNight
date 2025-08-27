@@ -19,9 +19,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         let starManager = try! StarManager()
 
-        // Create and set root view controller
-        let PlanetariumViewController = PlanetariumViewController(starManager: starManager)
-        window?.rootViewController = PlanetariumViewController
+        // Create view controllers
+        let planetariumViewController = PlanetariumViewController(starManager: starManager)
+        planetariumViewController.tabBarItem = UITabBarItem(title: "Planetarium", image: UIImage(systemName: "star.fill"), tag: 0)
+        
+        let settingsViewController = MetalViewController()
+        settingsViewController.view.backgroundColor = .systemBackground
+        settingsViewController.title = "Metal"
+        settingsViewController.tabBarItem = UITabBarItem(title: "Metal", image: UIImage(systemName: "move.3d"), tag: 1)
+        
+        // Create tab bar controller
+        let tabBarController = UITabBarController()
+        tabBarController.viewControllers = [planetariumViewController, settingsViewController]
+        
+        // Set root view controller
+        window?.rootViewController = tabBarController
         
         // Make window visible
         window?.makeKeyAndVisible()
