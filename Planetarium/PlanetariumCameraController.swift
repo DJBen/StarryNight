@@ -333,13 +333,6 @@ class PlanetariumCameraController {
         
         // Notify delegate about viewport changes
         delegate?.cameraController(self, didUpdateViewport: latLonCorners)
-        
-        // Debug output (consider removing or making optional)
-        print("Camera viewport corners (lat, lon):")
-        for (index, corner) in latLonCorners.enumerated() {
-            let cornerName = ["Top-left", "Top-right", "Bottom-left", "Bottom-right"][index]
-            print("  \(cornerName): (\(corner.latitude)°, \(corner.longitude)°)")
-        }
     }
     
     // MARK: - Public Interface

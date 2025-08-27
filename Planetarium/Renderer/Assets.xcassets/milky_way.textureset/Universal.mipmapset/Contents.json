@@ -1,0 +1,12 @@
+{
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  },
+  "levels" : [
+    {
+      "filename" : "milkyway_2020_4k_cube.png",
+      "mipmap-level" : "base"
+    }
+  ]
+}

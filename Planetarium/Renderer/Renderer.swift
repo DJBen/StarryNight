@@ -42,6 +42,13 @@ class Renderer: NSObject, MTKViewDelegate {
     var blendPipelineState: MTLRenderPipelineState
 #endif
     var depthState: MTLDepthStencilState
+    
+    // Skybox properties
+    var skyboxTexture: MTLTexture
+    var skyboxVertexBuffer: MTLBuffer
+    var skyboxPipelineState: MTLRenderPipelineState
+    var skyboxDepthState: MTLDepthStencilState
+    
     var colorMap: MTLTexture
     let inFlightSemaphore = DispatchSemaphore(value: maxBuffersInFlight)
     var uniformBufferOffset = 0
@@ -72,11 +79,23 @@ class Renderer: NSObject, MTKViewDelegate {
         self.stencilTexture = depthStencilTextures.stencilTexture
         let mtlVertexDescriptor = Renderer.buildMetalVertexDescriptor()
         self.meshes = allocateMeshes(device: self.device, mtlVertexDescriptor: mtlVertexDescriptor)
+        
+        // Initialize skybox
+        self.skyboxTexture = Self.loadSkyboxTexture(device: self.device)
+        self.skyboxVertexBuffer = Self.createSkyboxVertexBuffer(device: self.device)
+        
         let depthStateDesciptor = MTLDepthStencilDescriptor()
         depthStateDesciptor.depthCompareFunction = MTLCompareFunction.less
         depthStateDesciptor.isDepthWriteEnabled = true
         guard let state = device.makeDepthStencilState(descriptor: depthStateDesciptor) else { return nil }
         depthState = state
+        
+        // Create skybox depth state - render skybox first with always pass
+        let skyboxDepthStateDesc = MTLDepthStencilDescriptor()
+        skyboxDepthStateDesc.depthCompareFunction = .always
+        skyboxDepthStateDesc.isDepthWriteEnabled = true
+        guard let skyboxDepthState = device.makeDepthStencilState(descriptor: skyboxDepthStateDesc) else { return nil }
+        self.skyboxDepthState = skyboxDepthState
         
         let pipelines = allocatePiplines(device: device, metalKitView: metalKitView, mtlVertexDescriptor: mtlVertexDescriptor)
         pipelineState = pipelines[0]
@@ -86,6 +105,14 @@ class Renderer: NSObject, MTKViewDelegate {
         metalKitView.framebufferOnly = false
         #endif
         
+        // Create skybox pipeline state
+        do {
+            let skyboxPipeline = try Self.createSkyboxPipelineState(device: device, metalKitView: metalKitView)
+            self.skyboxPipelineState = skyboxPipeline
+        } catch {
+            fatalError()
+        }
+
         super.init()
     }
     
@@ -218,6 +245,98 @@ class Renderer: NSObject, MTKViewDelegate {
         }
     }
     
+    private static func loadSkyboxTexture(device: MTLDevice) -> any MTLTexture {
+        let textureLoader = MTKTextureLoader(device: device)
+        
+        let options: [MTKTextureLoader.Option: Any] = [
+            .textureUsage: NSNumber(value: MTLTextureUsage.shaderRead.rawValue),
+            .textureStorageMode: NSNumber(value: MTLStorageMode.private.rawValue),
+            .origin: MTKTextureLoader.Origin.bottomLeft
+        ]
+        
+        do {
+            let texture = try textureLoader.newTexture(name: "milky_way", scaleFactor: 1.0, bundle: nil, options: options)
+            print("Skybox texture loaded successfully: \(texture.width)x\(texture.height)")
+            return texture
+        } catch {
+            print("Could not load skybox texture: \(error)")
+            fatalError("Could not load skybox texture: \(error)")
+        }
+    }
+    
+    private static func createSkyboxVertexBuffer(device: MTLDevice) -> MTLBuffer {
+        // Create a large cube that will encompass the entire view
+        let vertices: [Float] = [
+            // Front face
+            -1,  1,  1,   -1, -1,  1,    1, -1,  1,    1, -1,  1,    1,  1,  1,   -1,  1,  1,
+            // Back face  
+            -1,  1, -1,    1,  1, -1,    1, -1, -1,    1, -1, -1,   -1, -1, -1,   -1,  1, -1,
+            // Left face
+            -1,  1, -1,   -1,  1,  1,   -1, -1,  1,   -1, -1,  1,   -1, -1, -1,   -1,  1, -1,
+            // Right face
+             1,  1,  1,    1,  1, -1,    1, -1, -1,    1, -1, -1,    1, -1,  1,    1,  1,  1,
+            // Top face
+            -1,  1, -1,   -1,  1,  1,    1,  1,  1,    1,  1,  1,    1,  1, -1,   -1,  1, -1,
+            // Bottom face
+            -1, -1,  1,   -1, -1, -1,    1, -1, -1,    1, -1, -1,    1, -1,  1,   -1, -1,  1
+        ]
+        
+        guard let buffer = device.makeBuffer(bytes: vertices, length: vertices.count * MemoryLayout<Float>.size, options: []) else {
+            fatalError("Could not create skybox vertex buffer")
+        }
+        return buffer
+    }
+    
+    private static func createSkyboxPipelineState(device: MTLDevice, metalKitView: MTKView) throws -> MTLRenderPipelineState {
+        let library = device.makeDefaultLibrary()!
+
+        let pipelineDescriptor = MTLRenderPipelineDescriptor()
+        pipelineDescriptor.vertexFunction = library.makeFunction(name: "skybox_vertex")
+        pipelineDescriptor.fragmentFunction = library.makeFunction(name: "skybox_fragment")
+        pipelineDescriptor.colorAttachments[0].pixelFormat = metalKitView.colorPixelFormat
+        pipelineDescriptor.depthAttachmentPixelFormat = .depth32Float_stencil8
+        pipelineDescriptor.stencilAttachmentPixelFormat = .depth32Float_stencil8
+        
+        let vertexDescriptor = MTLVertexDescriptor()
+        vertexDescriptor.attributes[0].format = .float3
+        vertexDescriptor.attributes[0].offset = 0
+        vertexDescriptor.attributes[0].bufferIndex = 0
+        vertexDescriptor.layouts[0].stride = MemoryLayout<Float>.stride * 3
+        vertexDescriptor.layouts[0].stepFunction = .perVertex
+        pipelineDescriptor.vertexDescriptor = vertexDescriptor
+        
+        return try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
+    }
+    
+    private func renderSkybox(renderEncoder: MTLRenderCommandEncoder) {
+        renderEncoder.pushDebugGroup("Render Skybox")
+        renderEncoder.setRenderPipelineState(skyboxPipelineState)
+        renderEncoder.setDepthStencilState(skyboxDepthState)
+        renderEncoder.setCullMode(.none) // Don't cull any faces for skybox
+        
+        // Set vertex buffer
+        renderEncoder.setVertexBuffer(skyboxVertexBuffer, offset: 0, index: 0)
+        
+        // Set uniforms (view matrix without translation)
+        var skyboxUniforms = Uniforms()
+        skyboxUniforms.projectionMatrix = projectionMatrix
+        
+        // Remove translation from view matrix but keep rotation
+        let viewMatrix = float4x4(translationX: 0.0, translationY: 0.0, translationZ: -8.0)
+        var viewNoTranslation = viewMatrix
+        viewNoTranslation.columns.3 = SIMD4<Float>(0, 0, 0, 1)
+        skyboxUniforms.modelViewMatrix = viewNoTranslation
+        
+        renderEncoder.setVertexBytes(&skyboxUniforms, length: MemoryLayout<Uniforms>.size, index: 1)
+        
+        // Set skybox texture
+        renderEncoder.setFragmentTexture(skyboxTexture, index: 0)
+        
+        // Draw the skybox
+        renderEncoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 36)
+        renderEncoder.popDebugGroup()
+    }
+    
     func prepareEncoder(renderEncoder: MTLRenderCommandEncoder, label: String) {
         renderEncoder.label = label
         renderEncoder.setCullMode(.back)
@@ -251,6 +370,9 @@ class Renderer: NSObject, MTKViewDelegate {
             if var renderPassDescriptor = renderPassDescriptor,
                 var renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) {
                 
+                /// Render skybox first to establish background
+                self.renderSkybox(renderEncoder: renderEncoder)
+                
                 /// Final pass rendering code here
                 prepareEncoder(renderEncoder: renderEncoder, label: "Primary Render Encoder")
                 renderEncoder.setRenderPipelineState(pipelineState)
@@ -267,10 +389,10 @@ class Renderer: NSObject, MTKViewDelegate {
                 
                 prepareEncoder(renderEncoder: renderEncoder, label: "Blend Render Encoder")
                 renderEncoder.setRenderPipelineState(blendPipelineState)
-                renderEncoder.setDepthStencilState(depthState)
                 renderEncoder.setFragmentTexture(view.currentRenderPassDescriptor?.colorAttachments[0].texture, index: TextureIndex.FB.rawValue)
 #endif
                 self.drawBox(boxIndex: 1, renderEncoder: renderEncoder)
+                
                 renderEncoder.endEncoding()
                 
                 if let drawable = view.currentDrawable {
