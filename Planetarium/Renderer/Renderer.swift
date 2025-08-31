@@ -90,10 +90,10 @@ class Renderer: NSObject, MTKViewDelegate {
         guard let state = device.makeDepthStencilState(descriptor: depthStateDesciptor) else { return nil }
         depthState = state
         
-        // Create skybox depth state - render skybox first with always pass
+        // Create skybox depth state - render skybox last with lessEqual depth test and no depth writes
         let skyboxDepthStateDesc = MTLDepthStencilDescriptor()
-        skyboxDepthStateDesc.depthCompareFunction = .always
-        skyboxDepthStateDesc.isDepthWriteEnabled = true
+        skyboxDepthStateDesc.depthCompareFunction = .lessEqual
+        skyboxDepthStateDesc.isDepthWriteEnabled = false
         guard let skyboxDepthState = device.makeDepthStencilState(descriptor: skyboxDepthStateDesc) else { return nil }
         self.skyboxDepthState = skyboxDepthState
         
@@ -370,10 +370,7 @@ class Renderer: NSObject, MTKViewDelegate {
             if var renderPassDescriptor = renderPassDescriptor,
                 var renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) {
                 
-                /// Render skybox first to establish background
-                self.renderSkybox(renderEncoder: renderEncoder)
-                
-                /// Final pass rendering code here
+                /// Primary pass rendering - render objects first
                 prepareEncoder(renderEncoder: renderEncoder, label: "Primary Render Encoder")
                 renderEncoder.setRenderPipelineState(pipelineState)
                 self.drawBox(boxIndex: 0, renderEncoder: renderEncoder)
@@ -392,6 +389,9 @@ class Renderer: NSObject, MTKViewDelegate {
                 renderEncoder.setFragmentTexture(view.currentRenderPassDescriptor?.colorAttachments[0].texture, index: TextureIndex.FB.rawValue)
 #endif
                 self.drawBox(boxIndex: 1, renderEncoder: renderEncoder)
+                
+                /// Render skybox last - only pixels not covered by other objects will render
+                self.renderSkybox(renderEncoder: renderEncoder)
                 
                 renderEncoder.endEncoding()
                 

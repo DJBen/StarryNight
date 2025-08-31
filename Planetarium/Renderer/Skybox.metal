@@ -25,8 +25,9 @@ vertex SkyboxVertexOut skybox_vertex(SkyboxVertexIn in [[stage_in]],
     
     float4 pos = uniforms.projectionMatrix * rotationOnlyView * float4(in.position, 1.0);
     
-    // Force vertex to far plane by setting z = w (infinite distance)
-    out.position = pos.xyww;
+    // Set z = w to place skybox at far plane (depth = 1.0 after perspective divide)
+    // This ensures skybox is only rendered where no other objects exist
+    out.position = float4(pos.xy, pos.w, pos.w);
     
     // Use vertex position as texture coordinates
     out.texCoords = in.position;
