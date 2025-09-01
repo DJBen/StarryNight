@@ -42,7 +42,7 @@ func allocateColorMap(device: MTLDevice) -> MTLTexture? {
 }
 
 func allocateUniformBuffers(device: MTLDevice) -> MTLBuffer? {
-    let uniformBufferSize = alignedUniformsSize * maxBuffersInFlight
+    let uniformBufferSize = alignedUniformsSize * maxBuffersInFlight * numObjects
     guard let buffer = device.makeBuffer(length: uniformBufferSize,
                                          options: [MTLResourceOptions.storageModeShared]) else { return nil }
     buffer.label = "UniformBuffer"

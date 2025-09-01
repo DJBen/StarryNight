@@ -49,12 +49,20 @@ class StarRenderer {
         for star in stars {
             // Normalize the coordinate to unit sphere (virtual globe surface)
             let coord = simd_normalize(star.coordinate)
-            let convertedCoord = SIMD3<Float>(
+            var convertedCoord = SIMD3<Float>(
                 x: Float(coord.x),
                 y: Float(coord.z),
                 z: Float(-coord.y)
             )
-
+            
+            // Apply a 90-degree rotation around the Y-axis
+            let rotationMatrix = simd_float3x3(
+                SIMD3<Float>(0, 0, -1),
+                SIMD3<Float>(0, 1, 0),
+                SIMD3<Float>(1, 0, 0)
+            )
+            convertedCoord = rotationMatrix * convertedCoord
+            
             // Scale to desired distance from camera
             let position = convertedCoord * sphereRadius
 

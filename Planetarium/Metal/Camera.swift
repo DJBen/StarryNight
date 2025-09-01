@@ -82,12 +82,12 @@ class Camera {
         
         // Calculate FOV-adjusted sensitivity to maintain consistent panning speed
         // When FOV is smaller (zoomed in), reduce sensitivity proportionally
-        let baseSensitivity: Float = 0.003
+        let baseSensitivity: Float = 0.002
         let fovAdjustment = currentFOV / maxFOV
         let adjustedSensitivity = baseSensitivity * fovAdjustment
         
         // Convert pan to rotation with FOV-adjusted sensitivity
-        let deltaX = -Float(translation.x) * adjustedSensitivity
+        let deltaX = Float(translation.x) * adjustedSensitivity
         let deltaY = -Float(translation.y) * adjustedSensitivity
 
         switch gesture.state {

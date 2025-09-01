@@ -114,28 +114,28 @@ class PlanetariumViewController: UIViewController {
         anchor.addChild(southMarker)
         
         // RA 0h - Vernal Equinox (positive X) - Green
-        let eastMaterial = SimpleMaterial(color: .green, isMetallic: false)
-        let eastMarker = ModelEntity(mesh: markerMesh, materials: [eastMaterial])
-        eastMarker.position = SIMD3<Float>(markerRadius, 0, 0)
-        anchor.addChild(eastMarker)
-        
+        let ra0hMaterial = SimpleMaterial(color: .green, isMetallic: false)
+        let ra0hMarker = ModelEntity(mesh: markerMesh, materials: [ra0hMaterial])
+        ra0hMarker.position = SIMD3<Float>(markerRadius, 0, 0)
+        anchor.addChild(ra0hMarker)
+
         // RA 12h (negative X) - Yellow
-        let westMaterial = SimpleMaterial(color: .yellow, isMetallic: false)
-        let westMarker = ModelEntity(mesh: markerMesh, materials: [westMaterial])
-        westMarker.position = SIMD3<Float>(-markerRadius, 0, 0)
-        anchor.addChild(westMarker)
+        let ra12hMaterial = SimpleMaterial(color: .yellow, isMetallic: false)
+        let ra12hMarker = ModelEntity(mesh: markerMesh, materials: [ra12hMaterial])
+        ra12hMarker.position = SIMD3<Float>(-markerRadius, 0, 0)
+        anchor.addChild(ra12hMarker)
         
         // RA 18h (positive Z) - White
-        let zenithMaterial = SimpleMaterial(color: .white, isMetallic: false)
-        let zenithMarker = ModelEntity(mesh: markerMesh, materials: [zenithMaterial])
-        zenithMarker.position = SIMD3<Float>(0, 0, markerRadius)
-        anchor.addChild(zenithMarker)
-        
+        let ra18hMaterial = SimpleMaterial(color: .white, isMetallic: false)
+        let ra18hMarker = ModelEntity(mesh: markerMesh, materials: [ra18hMaterial])
+        ra18hMarker.position = SIMD3<Float>(0, 0, markerRadius)
+        anchor.addChild(ra18hMarker)
+
         // RA 6h (negative Z) - Black with emissive
-        let nadirMaterial = SimpleMaterial(color: .black, isMetallic: false)
-        let nadirMarker = ModelEntity(mesh: markerMesh, materials: [nadirMaterial])
-        nadirMarker.position = SIMD3<Float>(0, 0, -markerRadius)
-        anchor.addChild(nadirMarker)
+        let ra6hMaterial = SimpleMaterial(color: .black, isMetallic: false)
+        let ra6hMarker = ModelEntity(mesh: markerMesh, materials: [ra6hMaterial])
+        ra6hMarker.position = SIMD3<Float>(0, 0, -markerRadius)
+        anchor.addChild(ra6hMarker)
     }
     
     private func loadAndDisplayStars() async {

@@ -13,11 +13,9 @@
 		FCE4F6D62E5F73CA009C3536 /* CelestialGridRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE4F6C92E5F73CA009C3536 /* CelestialGridRenderer.swift */; };
 		FCE4F6D72E5F73CA009C3536 /* PlanetariumCameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE4F6CC2E5F73CA009C3536 /* PlanetariumCameraController.swift */; };
 		FCE4F6D82E5F73CA009C3536 /* PlanetariumViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE4F6CD2E5F73CA009C3536 /* PlanetariumViewController.swift */; };
-		FCE4F6D92E5F73CA009C3536 /* MetalViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE4F6CB2E5F73CA009C3536 /* MetalViewController.swift */; };
 		FCE4F6DC2E5F73CA009C3536 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = FCE4F6CA2E5F73CA009C3536 /* LaunchScreen.storyboard */; };
 		FCE4F6DD2E5F73CA009C3536 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FCE4F6C82E5F73CA009C3536 /* Assets.xcassets */; };
 		FCE4F6DE2E5F73CA009C3536 /* Scene.usdz in Resources */ = {isa = PBXBuildFile; fileRef = FCE4F6CE2E5F73CA009C3536 /* Scene.usdz */; };
-		FCE4F7062E6515A3009C3536 /* Camera.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE4F7052E6515A3009C3536 /* Camera.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,19 +23,17 @@
 		FCE4F6C72E5F73CA009C3536 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		FCE4F6C82E5F73CA009C3536 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FCE4F6C92E5F73CA009C3536 /* CelestialGridRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelestialGridRenderer.swift; sourceTree = "<group>"; };
-		FCE4F6CB2E5F73CA009C3536 /* MetalViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalViewController.swift; sourceTree = "<group>"; };
 		FCE4F6CC2E5F73CA009C3536 /* PlanetariumCameraController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanetariumCameraController.swift; sourceTree = "<group>"; };
 		FCE4F6CD2E5F73CA009C3536 /* PlanetariumViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanetariumViewController.swift; sourceTree = "<group>"; };
 		FCE4F6CE2E5F73CA009C3536 /* Scene.usdz */ = {isa = PBXFileReference; lastKnownFileType = file; path = Scene.usdz; sourceTree = "<group>"; };
 		FCE4F6CF2E5F73CA009C3536 /* StarRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarRenderer.swift; sourceTree = "<group>"; };
 		FCE4F6D02E5F73CA009C3536 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		FCE4F7052E6515A3009C3536 /* Camera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Camera.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		FCE4F6E52E5F74AF009C3536 /* Renderer */ = {
+		FCE4F6E52E5F74AF009C3536 /* Metal */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Renderer;
+			path = Metal;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -57,13 +53,11 @@
 		FC29305A2E4061A300F838D9 = {
 			isa = PBXGroup;
 			children = (
-				FCE4F6E52E5F74AF009C3536 /* Renderer */,
+				FCE4F6E52E5F74AF009C3536 /* Metal */,
 				FCE4F6C72E5F73CA009C3536 /* AppDelegate.swift */,
 				FCE4F6C82E5F73CA009C3536 /* Assets.xcassets */,
-				FCE4F7052E6515A3009C3536 /* Camera.swift */,
 				FCE4F6C92E5F73CA009C3536 /* CelestialGridRenderer.swift */,
 				FCE4F6CA2E5F73CA009C3536 /* LaunchScreen.storyboard */,
-				FCE4F6CB2E5F73CA009C3536 /* MetalViewController.swift */,
 				FCE4F6CC2E5F73CA009C3536 /* PlanetariumCameraController.swift */,
 				FCE4F6CD2E5F73CA009C3536 /* PlanetariumViewController.swift */,
 				FCE4F6CE2E5F73CA009C3536 /* Scene.usdz */,
@@ -96,7 +90,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				FCE4F6E52E5F74AF009C3536 /* Renderer */,
+				FCE4F6E52E5F74AF009C3536 /* Metal */,
 			);
 			name = Planetarium;
 			packageProductDependencies = (
@@ -164,10 +158,8 @@
 				FCE4F6D12E5F73CA009C3536 /* StarRenderer.swift in Sources */,
 				FCE4F6D42E5F73CA009C3536 /* AppDelegate.swift in Sources */,
 				FCE4F6D62E5F73CA009C3536 /* CelestialGridRenderer.swift in Sources */,
-				FCE4F7062E6515A3009C3536 /* Camera.swift in Sources */,
 				FCE4F6D72E5F73CA009C3536 /* PlanetariumCameraController.swift in Sources */,
 				FCE4F6D82E5F73CA009C3536 /* PlanetariumViewController.swift in Sources */,
-				FCE4F6D92E5F73CA009C3536 /* MetalViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -328,7 +320,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = io.DJBen.Planetarium;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = Renderer/ShaderTypes.h;
+				SWIFT_OBJC_BRIDGING_HEADER = Metal/ShaderTypes.h;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -356,7 +348,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = io.DJBen.Planetarium;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = Renderer/ShaderTypes.h;
+				SWIFT_OBJC_BRIDGING_HEADER = Metal/ShaderTypes.h;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

@@ -25,9 +25,6 @@ vertex SkyboxVertexOut skybox_vertex(SkyboxVertexIn in [[stage_in]],
     
     float4 pos = uniforms.projectionMatrix * rotationOnlyView * float4(in.position, 1.0);
 
-    // For some reason the texture coordinate is flipped around the z-axis.
-    pos.x = -pos.x;
-
     // Set z = w to place skybox at far plane (depth = 1.0 after perspective divide)
     // This ensures skybox is only rendered where no other objects exist
     out.position = pos.xyww;
@@ -42,5 +39,8 @@ vertex SkyboxVertexOut skybox_vertex(SkyboxVertexIn in [[stage_in]],
 fragment float4 skybox_fragment(SkyboxVertexOut in [[stage_in]],
                                 texturecube<float> skyboxTexture [[texture(0)]]) {
     constexpr sampler s(mag_filter::linear, min_filter::linear, mip_filter::linear);
-    return skyboxTexture.sample(s, in.texCoords);
+    float3 coords = in.texCoords;
+    // Texture coordinates needs to invert around z axis.
+    coords.x = -coords.x;
+    return skyboxTexture.sample(s, coords);
 }

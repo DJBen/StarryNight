@@ -82,6 +82,8 @@ class Renderer: NSObject, MTKViewDelegate {
         self.camera = Camera()
         
         self.dynamicUniformBuffer = allocateUniformBuffers(device: self.device)!
+        print("Allocated uniform buffer with size: \(self.dynamicUniformBuffer.length) bytes")
+        print("Aligned uniform size: \(alignedUniformsSize), maxBuffersInFlight: \(maxBuffersInFlight), numObjects: \(numObjects)")
         self.constantData = allocateConstantBuffers(device: self.device)
         self.colorMap = allocateColorMap(device: self.device)!
         self.msaaTexture = allocateMSAATexture(device: self.device)
@@ -131,6 +133,12 @@ class Renderer: NSObject, MTKViewDelegate {
         
         // Set up camera delegate to receive matrix updates
         self.camera.delegate = self
+        
+        // Debug: Print initial camera state
+        print("Initial camera azimuth: \(camera.rotation.azimuth)°, altitude: \(camera.rotation.altitude)°")
+        print("Initial camera FOV: \(camera.fieldOfView)°")
+        print("Initial projection matrix: \(projectionMatrix)")
+        print("Initial view matrix: \(viewMatrix)")
     }
     
     deinit {
@@ -227,7 +235,8 @@ class Renderer: NSObject, MTKViewDelegate {
         let uniforms0 = uniformsForObject(index: 0)
         uniforms0[0].projectionMatrix = projectionMatrix
         let rotationAxis = SIMD3<Float>(1, 1, 0)
-        var modelMatrix = float4x4(translationX: 0.0, translationY: -1.0, translationZ: 0.0) * float4x4(rotationAngle: rotation, axis: rotationAxis)
+        // Move the first box closer and more in front of the camera for better visibility
+        var modelMatrix = float4x4(translationX: 0.0, translationY: 0.0, translationZ: -5.0) * float4x4(rotationAngle: rotation, axis: rotationAxis)
         // Use the camera's view matrix instead of hardcoded view transformation
         uniforms0[0].modelViewMatrix = viewMatrix * modelMatrix
         
@@ -238,7 +247,8 @@ class Renderer: NSObject, MTKViewDelegate {
         
         let uniforms1 = uniformsForObject(index: 1)
         uniforms1[0].projectionMatrix = projectionMatrix
-        modelMatrix = float4x4(translationX: 1.0, translationY: 0.0, translationZ: 1.0) * float4x4(rotationAngle: rotation, axis: rotationAxis)
+        // Move the second box closer and to the side for better visibility
+        modelMatrix = float4x4(translationX: 3.0, translationY: 0.0, translationZ: -5.0) * float4x4(rotationAngle: rotation, axis: rotationAxis)
         uniforms1[0].modelViewMatrix = viewMatrix * modelMatrix
         
         uniforms1[0].forceColor = true
@@ -264,10 +274,13 @@ class Renderer: NSObject, MTKViewDelegate {
     
     private func drawBox(boxIndex: Int, renderEncoder: MTLRenderCommandEncoder) {
         assert(boxIndex < numObjects)
+
         self.bindVertexDescriptorsForMesh(mesh: meshes[boxIndex], renderEncoder: renderEncoder)
 
-        renderEncoder.setVertexBuffer(dynamicUniformBuffer, offset: boxIndex * alignedUniformsSize, index: BufferIndex.uniforms.rawValue)
-        renderEncoder.setFragmentBuffer(dynamicUniformBuffer, offset: boxIndex * alignedUniformsSize, index: BufferIndex.uniforms.rawValue)
+        let uniformOffset = uniformBufferOffset + boxIndex * alignedUniformsSize
+
+        renderEncoder.setVertexBuffer(dynamicUniformBuffer, offset: uniformOffset, index: BufferIndex.uniforms.rawValue)
+        renderEncoder.setFragmentBuffer(dynamicUniformBuffer, offset: uniformOffset, index: BufferIndex.uniforms.rawValue)
 
         var constantBufferIndex = BufferIndex.uniforms.rawValue + 1
         let constantBufferOffset = MemoryLayout<vector_float4>.size * 16
@@ -289,7 +302,6 @@ class Renderer: NSObject, MTKViewDelegate {
                                                 indexType: submesh.indexType,
                                                 indexBuffer: submesh.indexBuffer.buffer,
                                                 indexBufferOffset: submesh.indexBuffer.offset)
-            
         }
     }
     
@@ -315,10 +327,10 @@ class Renderer: NSObject, MTKViewDelegate {
             -1,  1,  1,   -1, -1,  1,    1, -1,  1,    1, -1,  1,    1,  1,  1,   -1,  1,  1,
             // Back face  
             -1,  1, -1,    1,  1, -1,    1, -1, -1,    1, -1, -1,   -1, -1, -1,   -1,  1, -1,
-            // Left face
-            -1,  1, -1,   -1,  1,  1,   -1, -1,  1,   -1, -1,  1,   -1, -1, -1,   -1,  1, -1,
-            // Right face
-             1,  1,  1,    1,  1, -1,    1, -1, -1,    1, -1, -1,    1, -1,  1,    1,  1,  1,
+            // Left face (fixed winding order)
+            -1,  1,  1,   -1,  1, -1,   -1, -1, -1,   -1, -1, -1,   -1, -1,  1,   -1,  1,  1,
+            // Right face (fixed winding order)
+             1,  1, -1,    1,  1,  1,    1, -1,  1,    1, -1,  1,    1, -1, -1,    1,  1, -1,
             // Top face
             -1,  1, -1,   -1,  1,  1,    1,  1,  1,    1,  1,  1,    1,  1, -1,   -1,  1, -1,
             // Bottom face
@@ -352,8 +364,10 @@ class Renderer: NSObject, MTKViewDelegate {
         renderEncoder.pushDebugGroup("Render Skybox")
         renderEncoder.setRenderPipelineState(skyboxPipelineState)
         renderEncoder.setDepthStencilState(skyboxDepthState)
-        renderEncoder.setCullMode(.none) // Don't cull any faces for skybox
-        
+        // Since we are in the origin of a celetial sphere with the skybox surrounding us,
+        // we are seeing its backside.
+        renderEncoder.setCullMode(.front)
+
         // Set vertex buffer
         renderEncoder.setVertexBuffer(skyboxVertexBuffer, offset: 0, index: 0)
         
@@ -443,7 +457,7 @@ class Renderer: NSObject, MTKViewDelegate {
 #if os(macOS) || targetEnvironment(simulator)
                 renderEncoder.endEncoding()
                 
-                var newRenderPassDescriptor = finalRenderPassDescriptor
+                let newRenderPassDescriptor = finalRenderPassDescriptor
                 newRenderPassDescriptor.configureLoadActionForAttachments(.load)
                 renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: newRenderPassDescriptor)!
                 
