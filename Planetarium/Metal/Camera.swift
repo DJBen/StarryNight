@@ -31,7 +31,6 @@ class Camera {
     private var azimuthVelocity: Float = 0
     private var altitudeVelocity: Float = 0
     private var isMomentumActive: Bool = false
-    private var lastPanTime: CFTimeInterval = 0
     
     // Field of view properties
     private var currentFOV: Float = 90.0
@@ -78,31 +77,28 @@ class Camera {
     
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
         let translation = gesture.translation(in: gesture.view)
-        let currentTime = CACurrentMediaTime()
+        let velocity = gesture.velocity(in: gesture.view)
         
         // Calculate FOV-adjusted sensitivity to maintain consistent panning speed
         // When FOV is smaller (zoomed in), reduce sensitivity proportionally
-        let baseSensitivity: Float = 0.002
+        let baseSensitivity: Float = 0.0025
         let fovAdjustment = currentFOV / maxFOV
         let adjustedSensitivity = baseSensitivity * fovAdjustment
         
         // Convert pan to rotation with FOV-adjusted sensitivity
-        let deltaX = Float(translation.x) * adjustedSensitivity
+        let deltaX = -Float(translation.x) * adjustedSensitivity
         let deltaY = -Float(translation.y) * adjustedSensitivity
 
+        print(gesture.state.rawValue)
         switch gesture.state {
         case .began:
             // Stop any existing momentum
             stopMomentum()
-            lastPanTime = currentTime
             
         case .changed:
-            // Calculate time delta for velocity calculation
-            let timeDelta = Float(currentTime - lastPanTime)
-            
             // Update azimuth (horizontal pan = rotate around Y axis)
-            azimuth -= deltaX // Negative for natural feel
-            
+            azimuth += deltaX
+
             // Keep azimuth in -π to π range for consistency
             if azimuth > Float.pi {
                 azimuth -= 2 * Float.pi
@@ -111,28 +107,22 @@ class Camera {
             }
             
             // Update altitude (vertical pan = rotate around X axis)
-            altitude += deltaY // Positive for natural feel
+            altitude += deltaY
             
             // Clamp altitude to prevent flipping over poles
             altitude = max(-Float.pi/2, min(Float.pi/2, altitude))
             
-            // Calculate velocities based on change over time
-            if timeDelta > 0 {
-                azimuthVelocity = -deltaX / timeDelta
-                altitudeVelocity = deltaY / timeDelta
-            }
-            
+            // Calculate velocities from gesture velocity with FOV adjustment
+            azimuthVelocity = -Float(velocity.x) * adjustedSensitivity
+            altitudeVelocity = -Float(velocity.y) * adjustedSensitivity
+
             // Update view matrix
             updateViewMatrix()
-            
-            lastPanTime = currentTime
-            
-        case .ended, .cancelled:
-            // Start momentum animation if velocity is significant
-            let velocityThreshold: Float = 0.5
-            if abs(azimuthVelocity) > velocityThreshold || abs(altitudeVelocity) > velocityThreshold {
-                startMomentum()
-            }
+
+        case .cancelled:
+            startMomentum()
+        case .ended:
+            startMomentum()
             
         default:
             break
@@ -224,8 +214,8 @@ class Camera {
     func updateMomentumWithDeltaTime(_ deltaTime: Float) {
         guard isMomentumActive else { return }
         
-        let damping: Float = 0.95
-        let minimumVelocity: Float = 0.1
+        let damping: Float = 0.925
+        let minimumVelocity: Float = 0.02
         
         // Apply velocities to rotation using provided delta time
         azimuth += azimuthVelocity * deltaTime
