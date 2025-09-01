@@ -26,6 +26,14 @@ class PlanetariumViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        // Add Reset button to navigation bar
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            title: "Reset",
+            style: .plain,
+            target: self,
+            action: #selector(resetCamera)
+        )
+        
         // Initialize star renderer
         starRenderer = StarRenderer()
         
@@ -189,5 +197,11 @@ extension PlanetariumViewController: PlanetariumCameraControllerDelegate {
     func cameraController(_ controller: PlanetariumCameraController, didUpdateFOV fov: Float) {
         // Update grid lines when FOV changes
         updateGridForFOV(fov)
+    }
+    
+    @objc private func resetCamera() {
+        // Reset camera to default position and FOV
+        cameraController.setCameraRotation(azimuth: 0, altitude: 0)
+        cameraController.setFieldOfView(90.0)
     }
 }

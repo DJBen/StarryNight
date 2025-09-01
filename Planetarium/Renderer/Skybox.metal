@@ -24,32 +24,23 @@ vertex SkyboxVertexOut skybox_vertex(SkyboxVertexIn in [[stage_in]],
     rotationOnlyView[3] = float4(0, 0, 0, 1);
     
     float4 pos = uniforms.projectionMatrix * rotationOnlyView * float4(in.position, 1.0);
-    
+
+    // For some reason the texture coordinate is flipped around the z-axis.
+    pos.x = -pos.x;
+
     // Set z = w to place skybox at far plane (depth = 1.0 after perspective divide)
     // This ensures skybox is only rendered where no other objects exist
-    out.position = float4(pos.xy, pos.w, pos.w);
-    
-    // Use vertex position as texture coordinates
-    out.texCoords = in.position;
+    out.position = pos.xyww;
+
+    // For cube map sampling, we need the direction vector from the center
+    // Normalize the vertex position to get a proper direction vector
+    out.texCoords = normalize(in.position);
     
     return out;
 }
 
 fragment float4 skybox_fragment(SkyboxVertexOut in [[stage_in]],
-                               texture2d<float> skyboxTexture [[texture(0)]]) {
-    constexpr sampler s(mag_filter::linear, min_filter::linear, mip_filter::linear,
-                       address::repeat);
-    
-    // Convert 3D direction to spherical UV coordinates
-    float3 dir = normalize(in.texCoords);
-    
-    // Convert to spherical coordinates
-    float phi = atan2(dir.z, dir.x);
-    float theta = acos(dir.y);
-    
-    // Map to UV coordinates
-    float u = (phi + M_PI_F) / (2.0 * M_PI_F);
-    float v = theta / M_PI_F;
-    
-    return skyboxTexture.sample(s, float2(u, v));
+                                texturecube<float> skyboxTexture [[texture(0)]]) {
+    constexpr sampler s(mag_filter::linear, min_filter::linear, mip_filter::linear);
+    return skyboxTexture.sample(s, in.texCoords);
 }

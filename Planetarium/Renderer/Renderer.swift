@@ -49,11 +49,22 @@ class Renderer: NSObject, MTKViewDelegate {
     var skyboxPipelineState: MTLRenderPipelineState
     var skyboxDepthState: MTLDepthStencilState
     
+    // Camera system
+    public var camera: Camera
+    
+    // CAMetalDisplayLink properties
+    private var metalDisplayLink: CAMetalDisplayLink?
+    private var previousTargetPresentationTimestamp: CFTimeInterval = 0
+    var isUsingMetalDisplayLink: Bool {
+        return metalDisplayLink != nil
+    }
+    
     var colorMap: MTLTexture
     let inFlightSemaphore = DispatchSemaphore(value: maxBuffersInFlight)
     var uniformBufferOffset = 0
     var uniformBufferIndex = 0
     var projectionMatrix: float4x4 = float4x4()
+    var viewMatrix: float4x4 = matrix_identity_float4x4
     var rotation: Float = 0
     var blendMode = BlendMode.transparency
     var transparency: Float = 0.5
@@ -66,6 +77,9 @@ class Renderer: NSObject, MTKViewDelegate {
         self.commandQueue = queue
         metalKitView.colorPixelFormat = MTLPixelFormat.bgra8Unorm_srgb
         metalKitView.sampleCount = 1
+        
+        // Initialize camera system
+        self.camera = Camera()
         
         self.dynamicUniformBuffer = allocateUniformBuffers(device: self.device)!
         self.constantData = allocateConstantBuffers(device: self.device)
@@ -81,7 +95,7 @@ class Renderer: NSObject, MTKViewDelegate {
         self.meshes = allocateMeshes(device: self.device, mtlVertexDescriptor: mtlVertexDescriptor)
         
         // Initialize skybox
-        self.skyboxTexture = Self.loadSkyboxTexture(device: self.device)
+        self.skyboxTexture = try! Self.loadSkyboxTexture(device: self.device, contentScaleFactor: metalKitView.contentScaleFactor)
         self.skyboxVertexBuffer = Self.createSkyboxVertexBuffer(device: self.device)
         
         let depthStateDesciptor = MTLDepthStencilDescriptor()
@@ -114,6 +128,40 @@ class Renderer: NSObject, MTKViewDelegate {
         }
 
         super.init()
+        
+        // Set up camera delegate to receive matrix updates
+        self.camera.delegate = self
+    }
+    
+    deinit {
+        stopMetalDisplayLink()
+    }
+    
+    // MARK: - CAMetalDisplayLink Setup
+    
+    func setupMetalDisplayLink(metalLayer: CAMetalLayer) {
+        // Create and configure the Metal display link
+        metalDisplayLink = CAMetalDisplayLink(metalLayer: metalLayer)
+        metalDisplayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60.0, maximum: 120.0, preferred: 120.0)
+        metalDisplayLink?.preferredFrameLatency = 2
+        metalDisplayLink?.isPaused = false
+        metalDisplayLink?.delegate = self
+        
+        startMetalDisplayLink()
+    }
+    
+    private func startMetalDisplayLink() {
+        guard let metalDisplayLink = metalDisplayLink else { return }
+        previousTargetPresentationTimestamp = CACurrentMediaTime()
+        metalDisplayLink.add(to: .current, forMode: .common)
+        metalDisplayLink.isPaused = false
+    }
+    
+    private func stopMetalDisplayLink() {
+        guard let metalDisplayLink = metalDisplayLink else { return }
+        metalDisplayLink.remove(from: .current, forMode: .common)
+        metalDisplayLink.invalidate()
+        self.metalDisplayLink = nil
     }
     
     class func buildMetalVertexDescriptor() -> MTLVertexDescriptor {
@@ -180,7 +228,7 @@ class Renderer: NSObject, MTKViewDelegate {
         uniforms0[0].projectionMatrix = projectionMatrix
         let rotationAxis = SIMD3<Float>(1, 1, 0)
         var modelMatrix = float4x4(translationX: 0.0, translationY: -1.0, translationZ: 0.0) * float4x4(rotationAngle: rotation, axis: rotationAxis)
-        let viewMatrix = float4x4(translationX: 0.0, translationY: 0.0, translationZ: -8.0)
+        // Use the camera's view matrix instead of hardcoded view transformation
         uniforms0[0].modelViewMatrix = viewMatrix * modelMatrix
         
         uniforms0[0].forceColor = false
@@ -245,27 +293,23 @@ class Renderer: NSObject, MTKViewDelegate {
         }
     }
     
-    private static func loadSkyboxTexture(device: MTLDevice) -> any MTLTexture {
+    private static func loadSkyboxTexture(
+        device: MTLDevice,
+        contentScaleFactor: CGFloat
+    ) throws -> any MTLTexture {
         let textureLoader = MTKTextureLoader(device: device)
         
         let options: [MTKTextureLoader.Option: Any] = [
             .textureUsage: NSNumber(value: MTLTextureUsage.shaderRead.rawValue),
             .textureStorageMode: NSNumber(value: MTLStorageMode.private.rawValue),
-            .origin: MTKTextureLoader.Origin.bottomLeft
         ]
         
-        do {
-            let texture = try textureLoader.newTexture(name: "milky_way", scaleFactor: 1.0, bundle: nil, options: options)
-            print("Skybox texture loaded successfully: \(texture.width)x\(texture.height)")
-            return texture
-        } catch {
-            print("Could not load skybox texture: \(error)")
-            fatalError("Could not load skybox texture: \(error)")
-        }
+        let texture = try textureLoader.newTexture(name: "milky_way", scaleFactor: contentScaleFactor, bundle: nil, options: options)
+        return texture
     }
     
     private static func createSkyboxVertexBuffer(device: MTLDevice) -> MTLBuffer {
-        // Create a large cube that will encompass the entire view
+        // Create a cube with vertices positioned to create proper direction vectors for cube map sampling
         let vertices: [Float] = [
             // Front face
             -1,  1,  1,   -1, -1,  1,    1, -1,  1,    1, -1,  1,    1,  1,  1,   -1,  1,  1,
@@ -280,7 +324,7 @@ class Renderer: NSObject, MTKViewDelegate {
             // Bottom face
             -1, -1,  1,   -1, -1, -1,    1, -1, -1,    1, -1, -1,    1, -1,  1,   -1, -1,  1
         ]
-        
+
         guard let buffer = device.makeBuffer(bytes: vertices, length: vertices.count * MemoryLayout<Float>.size, options: []) else {
             fatalError("Could not create skybox vertex buffer")
         }
@@ -288,24 +332,20 @@ class Renderer: NSObject, MTKViewDelegate {
     }
     
     private static func createSkyboxPipelineState(device: MTLDevice, metalKitView: MTKView) throws -> MTLRenderPipelineState {
-        let library = device.makeDefaultLibrary()!
-
-        let pipelineDescriptor = MTLRenderPipelineDescriptor()
-        pipelineDescriptor.vertexFunction = library.makeFunction(name: "skybox_vertex")
-        pipelineDescriptor.fragmentFunction = library.makeFunction(name: "skybox_fragment")
-        pipelineDescriptor.colorAttachments[0].pixelFormat = metalKitView.colorPixelFormat
-        pipelineDescriptor.depthAttachmentPixelFormat = .depth32Float_stencil8
-        pipelineDescriptor.stencilAttachmentPixelFormat = .depth32Float_stencil8
-        
         let vertexDescriptor = MTLVertexDescriptor()
         vertexDescriptor.attributes[0].format = .float3
         vertexDescriptor.attributes[0].offset = 0
         vertexDescriptor.attributes[0].bufferIndex = 0
         vertexDescriptor.layouts[0].stride = MemoryLayout<Float>.stride * 3
         vertexDescriptor.layouts[0].stepFunction = .perVertex
-        pipelineDescriptor.vertexDescriptor = vertexDescriptor
-        
-        return try device.makeRenderPipelineState(descriptor: pipelineDescriptor)
+
+        return try buildRenderPipelineWithDevice(
+            device: device,
+            metalKitView: metalKitView,
+            vertexFunctionName: "skybox_vertex",
+            fragmentFunctionName: "skybox_fragment",
+            mtlVertexDescriptor: vertexDescriptor
+        )
     }
     
     private func renderSkybox(renderEncoder: MTLRenderCommandEncoder) {
@@ -321,11 +361,10 @@ class Renderer: NSObject, MTKViewDelegate {
         var skyboxUniforms = Uniforms()
         skyboxUniforms.projectionMatrix = projectionMatrix
         
-        // Remove translation from view matrix but keep rotation
-        let viewMatrix = float4x4(translationX: 0.0, translationY: 0.0, translationZ: -8.0)
-        var viewNoTranslation = viewMatrix
-        viewNoTranslation.columns.3 = SIMD4<Float>(0, 0, 0, 1)
-        skyboxUniforms.modelViewMatrix = viewNoTranslation
+        // Use the camera's view matrix but remove translation to keep skybox at infinity
+        var skyboxViewMatrix = viewMatrix
+        skyboxViewMatrix.columns.3 = SIMD4<Float>(0, 0, 0, 1)
+        skyboxUniforms.modelViewMatrix = skyboxViewMatrix
         
         renderEncoder.setVertexBytes(&skyboxUniforms, length: MemoryLayout<Uniforms>.size, index: 1)
         
@@ -345,7 +384,15 @@ class Renderer: NSObject, MTKViewDelegate {
     }
     
     func draw(in view: MTKView) {
-        /// Per frame updates hare
+        // This method is kept for compatibility but actual rendering 
+        // happens through CAMetalDisplayLink when available
+        if !isUsingMetalDisplayLink {
+            renderFrame(with: nil, view: view)
+        }
+    }
+    
+    func renderFrame(with update: CAMetalDisplayLink.Update?, view: MTKView? = nil) {
+        /// Per frame updates here
         
         _ = inFlightSemaphore.wait(timeout: DispatchTime.distantFuture)
         
@@ -358,17 +405,35 @@ class Renderer: NSObject, MTKViewDelegate {
             
             self.updateGameState()
             
-            /// Delay getting the currentRenderPassDescriptor until we absolutely need it to avoid
-            ///   holding onto the drawable and blocking the display pipeline any longer than necessary
-            let renderPassDescriptor = view.currentRenderPassDescriptor
-            renderPassDescriptor?.depthAttachment.texture = self.depthTexture
-            renderPassDescriptor?.stencilAttachment.texture = self.stencilTexture
+            var drawable: CAMetalDrawable?
+            var renderPassDescriptor: MTLRenderPassDescriptor?
+            
+            // Get drawable from CAMetalDisplayLink or MTKView
+            if let update = update {
+                drawable = update.drawable
+                renderPassDescriptor = MTLRenderPassDescriptor()
+                renderPassDescriptor!.colorAttachments[0].texture = drawable!.texture
+                renderPassDescriptor!.colorAttachments[0].loadAction = .clear
+                renderPassDescriptor!.colorAttachments[0].clearColor = MTLClearColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1.0)
+                renderPassDescriptor!.colorAttachments[0].storeAction = .store
+            } else if let view = view {
+                drawable = view.currentDrawable
+                renderPassDescriptor = view.currentRenderPassDescriptor
+            }
+            
+            guard let finalDrawable = drawable, 
+                  let finalRenderPassDescriptor = renderPassDescriptor else {
+                return
+            }
+            
+            /// Configure depth and stencil attachments
+            finalRenderPassDescriptor.depthAttachment.texture = self.depthTexture
+            finalRenderPassDescriptor.stencilAttachment.texture = self.stencilTexture
 #if os(macOS) || targetEnvironment(simulator)
-            renderPassDescriptor?.configureStoreActionForAttachments(.store)
+            finalRenderPassDescriptor.configureStoreActionForAttachments(.store)
 #endif
 
-            if var renderPassDescriptor = renderPassDescriptor,
-                var renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) {
+            if var renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: finalRenderPassDescriptor) {
                 
                 /// Primary pass rendering - render objects first
                 prepareEncoder(renderEncoder: renderEncoder, label: "Primary Render Encoder")
@@ -378,15 +443,13 @@ class Renderer: NSObject, MTKViewDelegate {
 #if os(macOS) || targetEnvironment(simulator)
                 renderEncoder.endEncoding()
                 
-                renderPassDescriptor = view.currentRenderPassDescriptor!
-                renderPassDescriptor.depthAttachment.texture = self.depthTexture
-                renderPassDescriptor.stencilAttachment.texture = self.stencilTexture
-                renderPassDescriptor.configureLoadActionForAttachments(.load)
-                renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor)!
+                var newRenderPassDescriptor = finalRenderPassDescriptor
+                newRenderPassDescriptor.configureLoadActionForAttachments(.load)
+                renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: newRenderPassDescriptor)!
                 
                 prepareEncoder(renderEncoder: renderEncoder, label: "Blend Render Encoder")
                 renderEncoder.setRenderPipelineState(blendPipelineState)
-                renderEncoder.setFragmentTexture(view.currentRenderPassDescriptor?.colorAttachments[0].texture, index: TextureIndex.FB.rawValue)
+                renderEncoder.setFragmentTexture(finalRenderPassDescriptor.colorAttachments[0].texture, index: TextureIndex.FB.rawValue)
 #endif
                 self.drawBox(boxIndex: 1, renderEncoder: renderEncoder)
                 
@@ -395,9 +458,7 @@ class Renderer: NSObject, MTKViewDelegate {
                 
                 renderEncoder.endEncoding()
                 
-                if let drawable = view.currentDrawable {
-                    commandBuffer.present(drawable)
-                }
+                commandBuffer.present(finalDrawable)
             }
             commandBuffer.commit()
         }
@@ -409,6 +470,41 @@ class Renderer: NSObject, MTKViewDelegate {
         let aspect = Float(size.width) / Float(size.height)
         projectionMatrix = float4x4(fieldOfView: radians(fromDegrees: 65),
                                     aspectRatio: aspect, nearZ: 0.1, farZ: 100.0)
+        
+        // Update camera's aspect ratio
+        camera.updateAspectRatio(aspect)
+    }
+}
+
+// MARK: - Camera Delegate
+
+extension Renderer: CameraDelegate {
+    func camera(_ camera: Camera, didUpdateViewMatrix viewMatrix: matrix_float4x4) {
+        self.viewMatrix = viewMatrix
+    }
+    
+    func camera(_ camera: Camera, didUpdateProjectionMatrix projectionMatrix: matrix_float4x4) {
+        self.projectionMatrix = projectionMatrix
+    }
+    
+    func camera(_ camera: Camera, didUpdateFOV fov: Float) {
+        // Optionally handle FOV changes for UI updates or other purposes
+        print("Camera FOV updated to: \(fov)°")
+    }
+}
+
+// MARK: - CAMetalDisplayLink Delegate
+
+extension Renderer: CAMetalDisplayLinkDelegate {
+    func metalDisplayLink(_ link: CAMetalDisplayLink, needsUpdate update: CAMetalDisplayLink.Update) {
+        let deltaTime = update.targetPresentationTimestamp - previousTargetPresentationTimestamp
+        previousTargetPresentationTimestamp = update.targetPresentationTimestamp
+        
+        // Update camera momentum with precise timing
+        camera.updateMomentumWithDeltaTime(Float(deltaTime))
+        
+        // Render the frame
+        renderFrame(with: update)
     }
 }
 

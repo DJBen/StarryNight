@@ -51,6 +51,10 @@ extension matrix_float4x4 {
         self[2, 3] = -1
         self[3, 2] = zVal * nearZ
     }
+    
+    var inverse: matrix_float4x4 {
+        return simd_inverse(self)
+    }
 }
 
 func radians(fromDegrees degrees: Float) -> Float {
