@@ -7,6 +7,7 @@ A platform independent renderer class
 import Metal
 import MetalKit
 import simd
+import StarryNight
 
 #if os(macOS) || targetEnvironment(simulator)
 let requiredConstantBufferAlignment = 256
@@ -48,6 +49,8 @@ class Renderer: NSObject, MTKViewDelegate {
     var skyboxVertexBuffer: MTLBuffer
     var skyboxPipelineState: MTLRenderPipelineState
     var skyboxDepthState: MTLDepthStencilState
+    // Depth state for stars (no depth writes)
+    var starDepthState: MTLDepthStencilState
     
     // Camera system
     public var camera: Camera
@@ -68,9 +71,27 @@ class Renderer: NSObject, MTKViewDelegate {
     var rotation: Float = 0
     var blendMode = BlendMode.transparency
     var transparency: Float = 0.5
+    // Time accumulator for star breathing animation (seconds)
+    private var starTime: Float = 0.0
     
     var meshes: [MTKMesh]
-    
+
+    // Star rendering resources
+    struct StarInstanceCPU {
+        var position: SIMD3<Float>
+        var size: Float
+        var _pad0: SIMD3<Float> = .zero
+        var color: SIMD4<Float>
+        var brightness: Float
+        var _pad1: SIMD3<Float> = .zero
+    }
+    var starInstances: [StarInstanceCPU]
+    var starInstanceBuffer: MTLBuffer?
+
+    var starQuadVertexBuffer: MTLBuffer?
+    var starQuadIndexBuffer: MTLBuffer?
+    let starPipelineState: MTLRenderPipelineState
+
     init?(metalKitView: MTKView) {
         self.device = metalKitView.device!
         guard let queue = self.device.makeCommandQueue() else { return nil }
@@ -82,8 +103,6 @@ class Renderer: NSObject, MTKViewDelegate {
         self.camera = Camera()
         
         self.dynamicUniformBuffer = allocateUniformBuffers(device: self.device)!
-        print("Allocated uniform buffer with size: \(self.dynamicUniformBuffer.length) bytes")
-        print("Aligned uniform size: \(alignedUniformsSize), maxBuffersInFlight: \(maxBuffersInFlight), numObjects: \(numObjects)")
         self.constantData = allocateConstantBuffers(device: self.device)
         self.colorMap = allocateColorMap(device: self.device)!
         self.msaaTexture = allocateMSAATexture(device: self.device)
@@ -112,6 +131,13 @@ class Renderer: NSObject, MTKViewDelegate {
         skyboxDepthStateDesc.isDepthWriteEnabled = false
         guard let skyboxDepthState = device.makeDepthStencilState(descriptor: skyboxDepthStateDesc) else { return nil }
         self.skyboxDepthState = skyboxDepthState
+
+    // Star depth state: depth test lessEqual, enable depth writes so skybox (last) won't overwrite stars
+        let starDepthDesc = MTLDepthStencilDescriptor()
+        starDepthDesc.depthCompareFunction = .lessEqual
+    starDepthDesc.isDepthWriteEnabled = true
+        guard let starDepthState = device.makeDepthStencilState(descriptor: starDepthDesc) else { return nil }
+        self.starDepthState = starDepthState
         
         let pipelines = allocatePiplines(device: device, metalKitView: metalKitView, mtlVertexDescriptor: mtlVertexDescriptor)
         pipelineState = pipelines[0]
@@ -129,16 +155,15 @@ class Renderer: NSObject, MTKViewDelegate {
             fatalError()
         }
 
+        // Initialize star rendering resources
+        self.starPipelineState = try! Self.createStarPipeline(device: device, view: metalKitView)
+        (starQuadVertexBuffer, starQuadIndexBuffer) = Self.createStarQuad(device: device)
+        (starInstances, starInstanceBuffer) = Self.loadBrightestStars(device: device)
+
         super.init()
         
         // Set up camera delegate to receive matrix updates
         self.camera.delegate = self
-        
-        // Debug: Print initial camera state
-        print("Initial camera azimuth: \(camera.rotation.azimuth)°, altitude: \(camera.rotation.altitude)°")
-        print("Initial camera FOV: \(camera.fieldOfView)°")
-        print("Initial projection matrix: \(projectionMatrix)")
-        print("Initial view matrix: \(viewMatrix)")
     }
     
     deinit {
@@ -304,6 +329,140 @@ class Renderer: NSObject, MTKViewDelegate {
                                                 indexBufferOffset: submesh.indexBuffer.offset)
         }
     }
+
+    // MARK: - Stars
+    private static func createStarQuad(device: MTLDevice) -> (MTLBuffer?, MTLBuffer?) {
+        // Quad in NDC-like local space [-1,1] with z=0
+        let verts: [SIMD3<Float>] = [
+            SIMD3(-1, -1, 0),
+            SIMD3( 1, -1, 0),
+            SIMD3( 1,  1, 0),
+            SIMD3(-1,  1, 0),
+        ]
+        let indices: [UInt16] = [0,1,2, 0,2,3]
+        let starQuadVertexBuffer = device.makeBuffer(bytes: verts, length: verts.count * MemoryLayout<SIMD3<Float>>.stride)
+        let starQuadIndexBuffer = device.makeBuffer(bytes: indices, length: indices.count * MemoryLayout<UInt16>.stride)
+        return (starQuadVertexBuffer, starQuadIndexBuffer)
+    }
+
+    private static func createStarPipeline(device: MTLDevice, view: MTKView) throws -> MTLRenderPipelineState {
+        let library = device.makeDefaultLibrary()
+        let descriptor = MTLRenderPipelineDescriptor()
+        descriptor.label = "Star Pipeline"
+        descriptor.vertexFunction = library?.makeFunction(name: "star_vertex")
+        descriptor.fragmentFunction = library?.makeFunction(name: "star_fragment")
+        descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
+#if os(macOS) || targetEnvironment(simulator)
+        descriptor.depthAttachmentPixelFormat = .depth32Float_stencil8
+        descriptor.stencilAttachmentPixelFormat = .depth32Float_stencil8
+#else
+        descriptor.depthAttachmentPixelFormat = .depth32Float
+        descriptor.stencilAttachmentPixelFormat = .stencil8
+#endif
+        // Additive RGB for visibility, with alpha channel using premultiplied alpha semantics
+        if let att = descriptor.colorAttachments[0] {
+            att.isBlendingEnabled = true
+            att.rgbBlendOperation = .add
+            att.alphaBlendOperation = .add
+            att.sourceRGBBlendFactor = .one              // additive color
+            att.destinationRGBBlendFactor = .one
+            att.sourceAlphaBlendFactor = .one
+            att.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+        }
+        // Explicit vertex layout not needed (we provide buffers directly)
+       return try device.makeRenderPipelineState(descriptor: descriptor)
+    }
+
+    private static func loadBrightestStars(device: MTLDevice) -> ([StarInstanceCPU], MTLBuffer?) {
+        guard let starManager = try? StarManager() else {
+            return ([], nil)
+        }
+        let brightest = starManager.brightestStars()
+        let starInstances = brightest.map { star in
+            // Convert DB coordinate (Double) to Float and rotate to match current convention used in RealityKit code
+            let coord = simd_normalize(SIMD3<Float>(Float(star.coordinate.x), Float(star.coordinate.y), Float(star.coordinate.z)))
+            // Reorder to match Metal scene axis convention used by skybox (x,z,-y) then 90deg around Y
+            var converted = SIMD3<Float>(coord.x, coord.z, -coord.y)
+            let rotY = float3x3(
+                SIMD3<Float>(0, 0, -1),
+                SIMD3<Float>(0, 1, 0),
+                SIMD3<Float>(1, 0, 0)
+            )
+            converted = rotY * converted
+
+            // Size and brightness from magnitude
+            let normMag = max(0.0, min(1.0, Float((6.0 - star.magnitude) / 8.0)))
+            let size = 0.012 + normMag * 0.06 // slightly larger for visibility
+            let brightness = max(0.3, min(1.0, Float((6.0 - star.magnitude) / 6.0)))
+
+            let color = spectralColor(for: star)
+            return StarInstanceCPU(position: converted * 10.0, // on sphere radius ~10 like markers
+                                   size: size,
+                                   color: SIMD4<Float>(color.x, color.y, color.z, 1.0),
+                                   brightness: brightness)
+        }
+        var starInstanceBuffer: MTLBuffer?
+        if starInstances.count > 0 {
+            starInstanceBuffer = device.makeBuffer(bytes: starInstances,
+                                                         length: starInstances.count * MemoryLayout<StarInstanceCPU>.stride,
+                                                         options: .storageModeShared)
+            starInstanceBuffer?.label = "Star Instances"
+        }
+        return (starInstances, starInstanceBuffer)
+    }
+
+    private static func spectralColor(for star: Star) -> SIMD3<Float> {
+        guard let s = star.spectralClass?.uppercased(), let first = s.first else { return SIMD3<Float>(1,1,1) }
+        switch first {
+        case "O": return SIMD3(0.6, 0.7, 1.0)
+        case "B": return SIMD3(0.7, 0.8, 1.0)
+        case "A": return SIMD3(0.9, 0.9, 1.0)
+        case "F": return SIMD3(1.0, 1.0, 0.9)
+        case "G": return SIMD3(1.0, 1.0, 0.7)
+        case "K": return SIMD3(1.0, 0.8, 0.6)
+        case "M": return SIMD3(1.0, 0.6, 0.4)
+        default: return SIMD3(1.0, 1.0, 1.0)
+        }
+    }
+
+    private func drawStars(renderEncoder: MTLRenderCommandEncoder) {
+        let starPSO = starPipelineState
+        guard let quadVB = starQuadVertexBuffer,
+              let quadIB = starQuadIndexBuffer,
+              let instBuf = starInstanceBuffer,
+              starInstances.count > 0 else { return }
+
+        renderEncoder.pushDebugGroup("Stars")
+        renderEncoder.setRenderPipelineState(starPSO)
+        renderEncoder.setDepthStencilState(starDepthState)
+        renderEncoder.setCullMode(.none) // billboard quads
+
+        // Provide camera projection + view (no model) for star billboards
+        var starUniforms = Uniforms(
+            projectionMatrix: projectionMatrix,
+            modelViewMatrix: viewMatrix,
+            blendMode: 0,
+            transparency: starTime,
+            forceColor: false,
+            color: SIMD4<Float>(0,0,0,0)
+        )
+        renderEncoder.setVertexBytes(&starUniforms, length: MemoryLayout<Uniforms>.size, index: BufferIndex.uniforms.rawValue)
+
+        // Set quad and instance buffers
+        renderEncoder.setVertexBuffer(quadVB, offset: 0, index: 0)
+        renderEncoder.setVertexBuffer(instBuf, offset: 0, index: 1)
+
+        // Draw instanced
+        renderEncoder.drawIndexedPrimitives(
+            type: .triangle,
+            indexCount: 6,
+            indexType: .uint16,
+            indexBuffer: quadIB,
+            indexBufferOffset: 0,
+            instanceCount: starInstances.count
+        )
+        renderEncoder.popDebugGroup()
+    }
     
     private static func loadSkyboxTexture(
         device: MTLDevice,
@@ -327,9 +486,9 @@ class Renderer: NSObject, MTKViewDelegate {
             -1,  1,  1,   -1, -1,  1,    1, -1,  1,    1, -1,  1,    1,  1,  1,   -1,  1,  1,
             // Back face  
             -1,  1, -1,    1,  1, -1,    1, -1, -1,    1, -1, -1,   -1, -1, -1,   -1,  1, -1,
-            // Left face (fixed winding order)
+            // Left face
             -1,  1,  1,   -1,  1, -1,   -1, -1, -1,   -1, -1, -1,   -1, -1,  1,   -1,  1,  1,
-            // Right face (fixed winding order)
+            // Right face
              1,  1, -1,    1,  1,  1,    1, -1,  1,    1, -1,  1,    1, -1, -1,    1,  1, -1,
             // Top face
             -1,  1, -1,   -1,  1,  1,    1,  1,  1,    1,  1,  1,    1,  1, -1,   -1,  1, -1,
@@ -443,12 +602,14 @@ class Renderer: NSObject, MTKViewDelegate {
             /// Configure depth and stencil attachments
             finalRenderPassDescriptor.depthAttachment.texture = self.depthTexture
             finalRenderPassDescriptor.stencilAttachment.texture = self.stencilTexture
+            finalRenderPassDescriptor.depthAttachment.loadAction = .clear
+            finalRenderPassDescriptor.depthAttachment.clearDepth = 1.0
 #if os(macOS) || targetEnvironment(simulator)
             finalRenderPassDescriptor.configureStoreActionForAttachments(.store)
 #endif
 
             if var renderEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: finalRenderPassDescriptor) {
-                
+
                 /// Primary pass rendering - render objects first
                 prepareEncoder(renderEncoder: renderEncoder, label: "Primary Render Encoder")
                 renderEncoder.setRenderPipelineState(pipelineState)
@@ -466,8 +627,9 @@ class Renderer: NSObject, MTKViewDelegate {
                 renderEncoder.setFragmentTexture(finalRenderPassDescriptor.colorAttachments[0].texture, index: TextureIndex.FB.rawValue)
 #endif
                 self.drawBox(boxIndex: 1, renderEncoder: renderEncoder)
-                
-                /// Render skybox last - only pixels not covered by other objects will render
+                // Stars blended additively over prior content
+                self.drawStars(renderEncoder: renderEncoder)
+                /// Render skybox last - only pixels not covered by other objects or stars will render
                 self.renderSkybox(renderEncoder: renderEncoder)
                 
                 renderEncoder.endEncoding()
@@ -516,6 +678,8 @@ extension Renderer: CAMetalDisplayLinkDelegate {
         
         // Update camera momentum with precise timing
         camera.updateMomentumWithDeltaTime(Float(deltaTime))
+    // Advance star animation time
+    starTime += Float(deltaTime)
         
         // Render the frame
         renderFrame(with: update)

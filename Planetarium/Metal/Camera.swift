@@ -89,7 +89,6 @@ class Camera {
         let deltaX = -Float(translation.x) * adjustedSensitivity
         let deltaY = -Float(translation.y) * adjustedSensitivity
 
-        print(gesture.state.rawValue)
         switch gesture.state {
         case .began:
             // Stop any existing momentum
