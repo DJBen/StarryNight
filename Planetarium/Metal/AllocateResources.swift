@@ -208,7 +208,7 @@ func buildRenderPipelineWithDevice(device: MTLDevice,
     
     let pipelineDescriptor = MTLRenderPipelineDescriptor()
     pipelineDescriptor.label = "RenderPipeline"
-    pipelineDescriptor.sampleCount = metalKitView.sampleCount
+    pipelineDescriptor.rasterSampleCount = metalKitView.sampleCount
     pipelineDescriptor.vertexFunction = vertexFunction
     pipelineDescriptor.fragmentFunction = fragmentFunction
     pipelineDescriptor.vertexDescriptor = mtlVertexDescriptor

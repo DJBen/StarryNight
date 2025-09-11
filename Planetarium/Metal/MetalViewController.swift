@@ -1,9 +1,9 @@
 /*
-See the LICENSE.txt file for this sample’s licensing information.
+ See the LICENSE.txt file for this sample’s licensing information.
 
-Abstract:
-Implementation of the view controller.
-*/
+ Abstract:
+ Implementation of the view controller.
+ */
 
 #if os(macOS)
 import Cocoa
@@ -22,7 +22,7 @@ class MetalViewController: PlatformViewController
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+
         // Add Reset button to navigation bar
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             title: "Reset",
@@ -35,7 +35,7 @@ class MetalViewController: PlatformViewController
         mtkView = MTKView(frame: view.bounds)
         mtkView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(mtkView)
-        
+
         // Set up MTKView constraints
         NSLayoutConstraint.activate([
             mtkView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -65,23 +65,23 @@ class MetalViewController: PlatformViewController
         renderer.mtkView(mtkView, drawableSizeWillChange: mtkView.drawableSize)
         renderer.blendMode = BlendMode.transparency
         renderer.transparency = 0.5
-        
+
         mtkView.delegate = renderer
-        
+
         // Set up camera gestures
         renderer.camera.setupGestures(for: mtkView)
-        
+
         // Set up Metal display link (iOS 17+)
         guard let metalLayer = mtkView.layer as? CAMetalLayer else {
             fatalError("MTKView layer must be CAMetalLayer for iOS 17+ CAMetalDisplayLink support")
         }
-        
+
         renderer.setupMetalDisplayLink(metalLayer: metalLayer)
         // Disable MTKView's internal rendering loop since we're using CAMetalDisplayLink
         mtkView.enableSetNeedsDisplay = false
         mtkView.isPaused = true
     }
-    
+
     @objc private func resetCamera() {
         renderer?.camera.resetToDefault()
     }

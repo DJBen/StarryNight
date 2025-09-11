@@ -1,10 +1,10 @@
 /*
-Camera implementation for Metal-based planetarium.
-
-Abstract:
-A camera system that stays at the origin (0,0,0) and provides spherical rotation
-and field-of-view control through touch gestures.
-*/
+ Camera implementation for Metal-based planetarium.
+ 
+ Abstract:
+ A camera system that stays at the origin (0,0,0) and provides spherical rotation
+ and field-of-view control through touch gestures.
+ */
 
 import UIKit
 import Metal
@@ -88,7 +88,7 @@ class Camera {
         // Convert pan to rotation with FOV-adjusted sensitivity
         let deltaX = -Float(translation.x) * adjustedSensitivity
         let deltaY = -Float(translation.y) * adjustedSensitivity
-
+        
         switch gesture.state {
         case .began:
             // Stop any existing momentum
@@ -97,7 +97,7 @@ class Camera {
         case .changed:
             // Update azimuth (horizontal pan = rotate around Y axis)
             azimuth += deltaX
-
+            
             // Keep azimuth in -π to π range for consistency
             if azimuth > Float.pi {
                 azimuth -= 2 * Float.pi
@@ -114,10 +114,10 @@ class Camera {
             // Calculate velocities from gesture velocity with FOV adjustment
             azimuthVelocity = -Float(velocity.x) * adjustedSensitivity
             altitudeVelocity = -Float(velocity.y) * adjustedSensitivity
-
+            
             // Update view matrix
             updateViewMatrix()
-
+            
         case .cancelled:
             startMomentum()
         case .ended:

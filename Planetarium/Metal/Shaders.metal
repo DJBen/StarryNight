@@ -199,12 +199,12 @@ fragment half4 star_fragment(StarVaryings in [[stage_in]]) {
     const float rEdge  = 0.50; // fully transparent by here
     float alphaBase = 1.0 - smoothstep(rSolid, rEdge, distCore);
     // Scale by brightness so bright stars stand out more
-    float alpha = saturate(alphaBase * (0.5 + 0.9 * in.brightness)) * in.color.a;
+    float alpha = saturate(alphaBase * (0.5 + 0.9 * in.brightness)) * clamp(in.color.a, 0.0, 1.0);
 
     // Early discard for quad edges
     if (alpha < 0.002) discard_fragment();
 
     // Premultiply color for blending
-    float3 premul = in.color.rgb * alpha;
-    return half4(half3(premul), half(alpha));
+    float3 premul = clamp(in.color.rgb, 0.0, 1.0) * alpha;
+    return half4(half3(premul), half(saturate(alpha)));
 }
