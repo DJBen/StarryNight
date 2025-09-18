@@ -102,4 +102,5 @@ iOSInjectionProject/
 **/._.DS_Store
 
 venv/
+.venv/
 .swiftpm
