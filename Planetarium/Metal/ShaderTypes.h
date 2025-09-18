@@ -57,5 +57,14 @@ typedef struct
     vector_float4 color;
 } Uniforms;
 
+typedef struct {
+    simd_float3 position;
+    float size;
+    simd_float3 _pad0;
+    simd_float4 color;
+    float brightness;
+    simd_float3 _pad1;
+} StarInstance;
+
 #endif /* ShaderTypes_h */
 

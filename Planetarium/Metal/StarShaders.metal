@@ -11,18 +11,6 @@ Metal shaders for starfield instanced rendering
 
 using namespace metal;
 
-
-
-// Star-instance data must match the Swift layout (see Renderer.swift)
-struct StarInstance {
-    float3 position;   // world-space center on celestial sphere
-    float  size;       // quad size in view-space units
-    float3 _pad0;      // padding to align next float4
-    float4 color;      // rgb color, a used as base alpha
-    float  brightness; // 0..1
-    float3 _pad1;      // padding to 16-byte alignment
-};
-
 struct StarVaryings {
     float4 position [[position]];
     float2 uv;

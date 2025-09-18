@@ -77,15 +77,7 @@ class Renderer: NSObject, MTKViewDelegate {
     var meshes: [MTKMesh]
 
     // Star rendering resources
-    struct StarInstanceCPU {
-        var position: SIMD3<Float>
-        var size: Float
-        var _pad0: SIMD3<Float> = .zero
-        var color: SIMD4<Float>
-        var brightness: Float
-        var _pad1: SIMD3<Float> = .zero
-    }
-    var starInstances: [StarInstanceCPU]
+    var starInstances: [StarInstance]
     var starInstanceBuffer: MTLBuffer?
 
     var starQuadVertexBuffer: MTLBuffer?
@@ -373,13 +365,12 @@ class Renderer: NSObject, MTKViewDelegate {
         return try device.makeRenderPipelineState(descriptor: descriptor)
     }
 
-    private static func loadBrightestStars(device: MTLDevice) -> ([StarInstanceCPU], MTLBuffer?) {
+    private static func loadBrightestStars(device: MTLDevice) -> ([StarInstance], MTLBuffer?) {
         guard let starManager = try? StarManager() else {
             return ([], nil)
         }
         let brightest = starManager.brightestStars()
         let starInstances = brightest.map { star in
-            // Convert DB coordinate (Double) to Float and rotate to match current convention used in RealityKit code
             let coord = simd_normalize(SIMD3<Float>(Float(star.coordinate.x), Float(star.coordinate.y), Float(star.coordinate.z)))
             // Reorder to match Metal scene axis convention used by skybox (x,z,-y) then 90deg around Y
             var converted = SIMD3<Float>(coord.x, coord.z, -coord.y)
@@ -396,15 +387,19 @@ class Renderer: NSObject, MTKViewDelegate {
             let brightness = max(0.3, min(1.0, Float((6.0 - star.magnitude) / 6.0)))
 
             let color = spectralColor(for: star)
-            return StarInstanceCPU(position: converted * 10.0, // on sphere radius ~10 like markers
-                                   size: size,
-                                   color: SIMD4<Float>(color.x, color.y, color.z, 1.0),
-                                   brightness: brightness)
+            return StarInstance(
+                position: converted * 10.0, // on a 10x radius of unit sphere
+                size: size,
+                _pad0: .zero,
+                color: SIMD4<Float>(color.x, color.y, color.z, 1.0),
+                brightness: brightness,
+                _pad1: .zero,
+            )
         }
         var starInstanceBuffer: MTLBuffer?
         if starInstances.count > 0 {
             starInstanceBuffer = device.makeBuffer(bytes: starInstances,
-                                                   length: starInstances.count * MemoryLayout<StarInstanceCPU>.stride,
+                                                   length: starInstances.count * MemoryLayout<StarInstance>.stride,
                                                    options: .storageModeShared)
             starInstanceBuffer?.label = "Star Instances"
         }
