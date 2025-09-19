@@ -99,9 +99,6 @@ fragment half4 star_fragment(StarVaryings in [[stage_in]]) {
 
     float alpha = saturate(irradiance) * clamp(in.color.a, 0.0, 1.0);
 
-    // Early discard for quad edges
-    if (alpha < 0.002) discard_fragment();
-
     // Premultiply color for blending
     float3 premul = clamp(in.color.rgb, 0.0, 1.0) * alpha;
     return half4(half3(premul), half(alpha));

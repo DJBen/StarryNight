@@ -10,37 +10,6 @@ import Metal
 import MetalKit
 import simd
 
-func allocatePiplines(device: MTLDevice, metalKitView: MTKView,
-                      mtlVertexDescriptor: MTLVertexDescriptor) -> [MTLRenderPipelineState] {
-    var pipelines = [MTLRenderPipelineState]()
-    do {
-        pipelines.append(try buildRenderPipelineWithDevice(device: device,
-                                                           metalKitView: metalKitView,
-                                                           vertexFunctionName: "vertexShader",
-                                                           fragmentFunctionName: "fragmentShader",
-                                                           mtlVertexDescriptor: mtlVertexDescriptor))
-        #if os(macOS) || targetEnvironment(simulator)
-        pipelines.append(try buildRenderPipelineWithDevice(device: device,
-                                                           metalKitView: metalKitView,
-                                                           vertexFunctionName: "vertexShader",
-                                                           fragmentFunctionName: "blendFragmentShader",
-                                                           mtlVertexDescriptor: mtlVertexDescriptor))
-        #endif
-    } catch {
-        print("Unable to compile render pipeline state.  Error info: \(error)")
-    }
-    return pipelines
-}
-
-func allocateColorMap(device: MTLDevice) -> MTLTexture? {
-    do {
-        return try Renderer.loadTexture(device: device, textureName: "ColorMap")
-    } catch {
-        print("Unable to load texture. Error info: \(error)")
-        return nil
-    }
-}
-
 func allocateUniformBuffers(device: MTLDevice) -> MTLBuffer? {
     let uniformBufferSize = alignedUniformsSize * maxBuffersInFlight * numObjects
     guard let buffer = device.makeBuffer(length: uniformBufferSize,
@@ -156,8 +125,10 @@ func allocateMSAATexture(device: MTLDevice) -> MTLTexture {
     return device.makeTexture(descriptor: msaaTextureDescriptor)!
 }
 
-func allocateDepthStencilTextures(device: MTLDevice,
-                                  metalKitView: MTKView) -> (depthTexture: MTLTexture, stencilTexture: MTLTexture) {
+func allocateDepthStencilTextures(
+    device: MTLDevice,
+    metalKitView: MTKView
+) -> (depthTexture: MTLTexture, stencilTexture: MTLTexture) {
     #if os(macOS) || targetEnvironment(simulator)
     let depthPixelFormat = MTLPixelFormat.depth32Float_stencil8
     let stencilPixelFormat = MTLPixelFormat.depth32Float_stencil8
@@ -187,11 +158,13 @@ func allocateDepthStencilTextures(device: MTLDevice,
     return (depthTexture, stencilTexture)
 }
 
-func buildRenderPipelineWithDevice(device: MTLDevice,
-                                   metalKitView: MTKView,
-                                   vertexFunctionName: String,
-                                   fragmentFunctionName: String,
-                                   mtlVertexDescriptor: MTLVertexDescriptor) throws -> MTLRenderPipelineState {
+func buildRenderPipelineWithDevice(
+    device: MTLDevice,
+    metalKitView: MTKView,
+    vertexFunctionName: String,
+    fragmentFunctionName: String,
+    mtlVertexDescriptor: MTLVertexDescriptor
+) throws -> MTLRenderPipelineState {
     /// Build a render state pipeline object
     #if os(macOS) || targetEnvironment(simulator)
     let depthPixelFormat = MTLPixelFormat.depth32Float_stencil8
