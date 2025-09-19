@@ -381,19 +381,15 @@ class Renderer: NSObject, MTKViewDelegate {
             )
             converted = rotY * converted
 
-            // Size and brightness from magnitude
-            let normMag = max(0.0, min(1.0, Float((6.0 - star.magnitude) / 8.0)))
-            let size = 0.012 + normMag * 0.06 // slightly larger for visibility
-            let brightness = max(0.3, min(1.0, Float((6.0 - star.magnitude) / 6.0)))
-
             let color = spectralColor(for: star)
             return StarInstance(
                 position: converted * 10.0, // on a 10x radius of unit sphere
-                size: size,
-                _pad0: .zero,
+                magnitude: Float(star.magnitude),
                 color: SIMD4<Float>(color.x, color.y, color.z, 1.0),
-                brightness: brightness,
-                _pad1: .zero,
+                lambdaN: averageWavelength(for: star) * 10e-9 * 3, // f/3
+                exposureMultiplier: 10,
+                sensorPixelSize: 4.63e-6,
+                _pad0: .zero
             )
         }
         var starInstanceBuffer: MTLBuffer?
@@ -417,6 +413,20 @@ class Renderer: NSObject, MTKViewDelegate {
         case "K": return SIMD3(1.0, 0.8, 0.6)
         case "M": return SIMD3(1.0, 0.6, 0.4)
         default: return SIMD3(1.0, 1.0, 1.0)
+        }
+    }
+
+    private static func averageWavelength(for star: Star) -> Float {
+        guard let s = star.spectralClass?.uppercased(), let first = s.first else { return 550.0 } // Default to green
+        switch first {
+        case "O": return 400.0 // Violet-Blue
+        case "B": return 450.0 // Blue
+        case "A": return 500.0 // Blue-Green
+        case "F": return 550.0 // Green
+        case "G": return 600.0 // Yellow
+        case "K": return 650.0 // Orange
+        case "M": return 700.0 // Red
+        default: return 550.0
         }
     }
 

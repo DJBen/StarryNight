@@ -15,7 +15,9 @@ struct StarVaryings {
     float4 position [[position]];
     float2 uv;
     float4 color;
-    float  brightness;
+    float omega0;
+    float size;
+    float multiplier; // flux * exposureMultiplier;
     float  time;      // global time (seconds) for breathing
     float  phase;     // per-instance phase offset
 };
@@ -34,13 +36,25 @@ vertex StarVaryings star_vertex(
 
     // Billboard in view space: transform star to view space then offset by quad in view plane
     float4 starView = uniforms.modelViewMatrix * float4(star.position, 1.0);
-    // Simple round star: no spike extension
-    starView.xy += quadPos.xy * star.size;
+
+    // https://en.wikipedia.org/wiki/Apparent_magnitude
+    // flux relative to mag 0
+    float flux = pow(10, -0.4 * star.magnitude);
+
+    float omega_0 = 0.9 * star.lambdaN;
+    // Distance where radiance drops to 1/255
+    // x = omega_0 * np.sqrt(-0.5 * np.log(1/255))
+    // Size in meters
+    float size = omega_0 * sqrt(-0.5 * log(1 / 255.0 / (flux * star.exposureMultiplier))) ;
+
+    starView.xy += quadPos.xy * size / star.sensorPixelSize * 0.01;
 
     out.position = uniforms.projectionMatrix * starView;
     out.uv = quadPos.xy * 0.5 + 0.5;
     out.color = star.color;
-    out.brightness = star.brightness;
+    out.omega0 = omega_0;
+    out.size = size;
+    out.multiplier = flux * star.exposureMultiplier;
     // Use uniforms.transparency channel to carry time without changing shared struct layout
     out.time = uniforms.transparency;
     // Cheap hash to desynchronize breathing per star
@@ -54,17 +68,14 @@ fragment half4 star_fragment(StarVaryings in [[stage_in]]) {
     float2 uv = in.uv - 0.5;
     float distCore = length(uv);
 
-    // Solid center with smooth edge falloff
-    const float rSolid = 0.18; // fully opaque radius
-    const float rEdge  = 0.50; // fully transparent by here
-    float alphaBase = 1.0 - smoothstep(rSolid, rEdge, distCore);
-    // Scale by brightness so bright stars stand out more
-    float alpha = saturate(alphaBase * (0.5 + 0.9 * in.brightness)) * clamp(in.color.a, 0.0, 1.0);
+    // https://en.wikipedia.org/wiki/Airy_disk#Approximation_using_a_Gaussian_profile
+    float irradiance = exp(-2 * pow(distCore * 2 * in.size, 2) / pow(in.omega0, 2)) * in.multiplier;
+    float alpha = saturate(irradiance) * clamp(in.color.a, 0.0, 1.0);
 
     // Early discard for quad edges
     if (alpha < 0.002) discard_fragment();
 
     // Premultiply color for blending
     float3 premul = clamp(in.color.rgb, 0.0, 1.0) * alpha;
-    return half4(half3(premul), half(saturate(alpha)));
+    return half4(half3(premul), half(alpha));
 }
