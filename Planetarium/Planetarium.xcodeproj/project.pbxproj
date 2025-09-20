@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		FC4FD9112E48499B007B15BD /* StarryNight in Frameworks */ = {isa = PBXBuildFile; productRef = FC4FD9102E48499B007B15BD /* StarryNight */; };
-		FCE4F6D12E5F73CA009C3536 /* StarRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE4F6CF2E5F73CA009C3536 /* StarRenderer.swift */; };
+		FCE4F6D12E5F73CA009C3536 /* RealityKitStarRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE4F6CF2E5F73CA009C3536 /* RealityKitStarRenderer.swift */; };
 		FCE4F6D42E5F73CA009C3536 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE4F6C72E5F73CA009C3536 /* AppDelegate.swift */; };
 		FCE4F6D62E5F73CA009C3536 /* CelestialGridRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE4F6C92E5F73CA009C3536 /* CelestialGridRenderer.swift */; };
 		FCE4F6D72E5F73CA009C3536 /* PlanetariumCameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE4F6CC2E5F73CA009C3536 /* PlanetariumCameraController.swift */; };
@@ -26,7 +26,7 @@
 		FCE4F6CC2E5F73CA009C3536 /* PlanetariumCameraController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanetariumCameraController.swift; sourceTree = "<group>"; };
 		FCE4F6CD2E5F73CA009C3536 /* PlanetariumViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanetariumViewController.swift; sourceTree = "<group>"; };
 		FCE4F6CE2E5F73CA009C3536 /* Scene.usdz */ = {isa = PBXFileReference; lastKnownFileType = file; path = Scene.usdz; sourceTree = "<group>"; };
-		FCE4F6CF2E5F73CA009C3536 /* StarRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarRenderer.swift; sourceTree = "<group>"; };
+		FCE4F6CF2E5F73CA009C3536 /* RealityKitStarRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealityKitStarRenderer.swift; sourceTree = "<group>"; };
 		FCE4F6D02E5F73CA009C3536 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -61,7 +61,7 @@
 				FCE4F6CC2E5F73CA009C3536 /* PlanetariumCameraController.swift */,
 				FCE4F6CD2E5F73CA009C3536 /* PlanetariumViewController.swift */,
 				FCE4F6CE2E5F73CA009C3536 /* Scene.usdz */,
-				FCE4F6CF2E5F73CA009C3536 /* StarRenderer.swift */,
+				FCE4F6CF2E5F73CA009C3536 /* RealityKitStarRenderer.swift */,
 				FC2930642E4061A300F838D9 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -155,7 +155,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FCE4F6D12E5F73CA009C3536 /* StarRenderer.swift in Sources */,
+				FCE4F6D12E5F73CA009C3536 /* RealityKitStarRenderer.swift in Sources */,
 				FCE4F6D42E5F73CA009C3536 /* AppDelegate.swift in Sources */,
 				FCE4F6D62E5F73CA009C3536 /* CelestialGridRenderer.swift in Sources */,
 				FCE4F6D72E5F73CA009C3536 /* PlanetariumCameraController.swift in Sources */,

@@ -18,7 +18,7 @@ struct StarVertex {
     let spectralColor: SIMD3<Float>
 }
 
-class StarRenderer {
+class RealityKitStarRenderer {
     private var stars: [Star] = []
     private var starPointCloudEntity: ModelEntity?
     private let sphereRadius: Float = 10.0 // Distance from camera center

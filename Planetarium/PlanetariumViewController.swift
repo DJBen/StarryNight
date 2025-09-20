@@ -10,7 +10,7 @@ class PlanetariumViewController: UIViewController {
     private var arView: ARView!
     private var sceneAnchor: AnchorEntity?
     private var cameraController: PlanetariumCameraController!
-    private var starRenderer: StarRenderer!
+    private var starRenderer: RealityKitStarRenderer!
     private var gridRenderer: CelestialGridRenderer!
 
     init(starManager: any StarManaging) {
@@ -35,7 +35,7 @@ class PlanetariumViewController: UIViewController {
         )
         
         // Initialize star renderer
-        starRenderer = StarRenderer()
+        starRenderer = RealityKitStarRenderer()
         
         // Initialize grid renderer
         gridRenderer = CelestialGridRenderer()
