@@ -38,6 +38,7 @@ class Renderer: NSObject, MTKViewDelegate {
     // Sub-renderers
     private let skyboxRenderer: SkyboxRenderer
     private let starRenderer: StarRenderer
+    private let h3GridRenderer: H3GridRenderer
 
     // Camera system
     public var camera: Camera
@@ -78,6 +79,7 @@ class Renderer: NSObject, MTKViewDelegate {
     // Initialize sub-renderers
     self.skyboxRenderer = SkyboxRenderer(device: self.device, view: metalKitView)
     self.starRenderer = StarRenderer(device: self.device, view: metalKitView)
+    self.h3GridRenderer = H3GridRenderer(device: self.device, view: metalKitView)
 
 #if os(macOS) || targetEnvironment(simulator)
         metalKitView.framebufferOnly = false
@@ -185,8 +187,9 @@ class Renderer: NSObject, MTKViewDelegate {
                 /// Primary pass rendering - render objects first
                 prepareEncoder(renderEncoder: renderEncoder, label: "Primary Render Encoder")
 
-                // Draw skybox then stars
+                // Draw skybox, grid, then stars
                 skyboxRenderer.draw(renderEncoder: renderEncoder, projectionMatrix: projectionMatrix, viewMatrix: viewMatrix)
+                h3GridRenderer.draw(renderEncoder: renderEncoder, projectionMatrix: projectionMatrix, viewMatrix: viewMatrix)
                 starRenderer.draw(renderEncoder: renderEncoder, projectionMatrix: projectionMatrix, viewMatrix: viewMatrix, time: starTime)
 
                 renderEncoder.endEncoding()
@@ -206,6 +209,7 @@ class Renderer: NSObject, MTKViewDelegate {
 
         // Update camera's aspect ratio
         camera.updateAspectRatio(aspect)
+        h3GridRenderer.drawableSizeWillChange(to: size)
     }
 }
 
@@ -241,10 +245,6 @@ extension Renderer: CAMetalDisplayLinkDelegate {
         // Render the frame
         renderFrame(with: update)
     }
-}
-
-func align(_ value: Int, alignment: Int) -> Int {
-    return (value + (alignment - 1)) & ~(alignment - 1)
 }
 
 #if os(macOS) || targetEnvironment(simulator)

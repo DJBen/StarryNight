@@ -104,3 +104,4 @@ iOSInjectionProject/
 venv/
 .venv/
 .swiftpm
+.vscode

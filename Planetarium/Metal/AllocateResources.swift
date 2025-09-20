@@ -10,6 +10,10 @@ import Metal
 import MetalKit
 import simd
 
+func align(_ value: Int, alignment: Int) -> Int {
+    return (value + (alignment - 1)) & ~(alignment - 1)
+}
+
 func allocateUniformBuffers(device: MTLDevice) -> MTLBuffer? {
     let uniformBufferSize = alignedUniformsSize * maxBuffersInFlight * numObjects
     guard let buffer = device.makeBuffer(length: uniformBufferSize,
