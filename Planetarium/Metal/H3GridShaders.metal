@@ -16,6 +16,7 @@ struct LineVertexOut {
 struct LineInstance {
     float3 p0;    // world space
     float3 p1;    // world space
+    uint   level; // H3 resolution level for coloring
 };
 
 // Expands one line segment into a quad in clip space with constant pixel width
@@ -26,7 +27,8 @@ vertex LineVertexOut h3line_vertex(
     const device LineInstance* segs [[buffer(0)]],
     constant float &pixelWidth [[buffer(4)]],
     constant float2 &viewportSize [[buffer(5)]],
-    constant float4 &gridColor [[buffer(6)]]
+    constant float4 *levelColors [[buffer(6)]],
+    constant uint &numColors [[buffer(7)]]
 ) {
     LineVertexOut out;
 
@@ -72,7 +74,8 @@ vertex LineVertexOut h3line_vertex(
     }
 
     out.position = vClip;
-    out.color = gridColor;
+    uint l = min(segs[iid].level, numColors-1);
+    out.color = levelColors[l];
     return out;
 }
 

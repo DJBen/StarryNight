@@ -189,7 +189,7 @@ class Renderer: NSObject, MTKViewDelegate {
 
                 // Draw skybox, grid, then stars
                 skyboxRenderer.draw(renderEncoder: renderEncoder, projectionMatrix: projectionMatrix, viewMatrix: viewMatrix)
-                h3GridRenderer.draw(renderEncoder: renderEncoder, projectionMatrix: projectionMatrix, viewMatrix: viewMatrix)
+                h3GridRenderer.draw(renderEncoder: renderEncoder, projectionMatrix: projectionMatrix, viewMatrix: viewMatrix, currentFOVDegrees: camera.fieldOfView)
                 starRenderer.draw(renderEncoder: renderEncoder, projectionMatrix: projectionMatrix, viewMatrix: viewMatrix, time: starTime)
 
                 renderEncoder.endEncoding()

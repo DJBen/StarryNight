@@ -22,25 +22,24 @@ public struct GridLine: Sendable {
 /// - Parameters:
 ///   - radius: scale factor applied to unit-sphere coordinates to place them in world space (match stars at ~10.0).
 /// - Returns: Unique undirected segments covering res0 cell boundaries in StarryNight's render coordinate space.
-public func makeRes0GridLines(radius: Float = 10.0) -> [GridLine] {
-    // 1) Find all res0 indexes by expanding k-rings from an origin until reaching expected count.
+public func makeGridLines(forRes res: Int32, radius: Float = 10.0) -> [GridLine] {
+    // 1) Find all indexes at the given resolution by expanding k-rings from an origin until reaching expected count.
     let origin = withUnsafePointer(to: GeoCoord(lat: 0.0, lon: 0.0)) { geoPtr in
-        geoToH3(geoPtr, 0)
+        geoToH3(geoPtr, res)
     }
-    let expected = Int(numHexagons(0))
+    let expected = max(0, Int(numHexagons(res)))
 
     var discovered = Set<UInt64>()
     if origin != 0 {
         discovered.insert(origin)
     }
 
-    // Increase k until we have all, with a hard cap to avoid infinite loop.
+    // Increase k until we have all, with a hard cap to avoid runaway (res<=3 is small)
     var k: Int32 = 1
-    while discovered.count < expected && k <= 10 {
+    while discovered.count < expected && k <= 30 {
         let maxCount = Int(maxKringSize(k))
         let buffer = UnsafeMutablePointer<H3Index>.allocate(capacity: maxCount)
         defer { buffer.deallocate() }
-        // kRing collects indexes up to distance k
         kRing(origin, k, buffer)
         for i in 0..<maxCount {
             let idx = buffer[i]
@@ -112,4 +111,13 @@ public func makeRes0GridLines(radius: Float = 10.0) -> [GridLine] {
     }
 
     return lines
+}
+
+/// Compute the FOV threshold in degrees for a given H3 resolution.
+/// If current FOV is below this threshold, it means the viewport can fit ~4x the edge length of that resolution.
+public func fovThresholdDegrees(forRes res: Int32) -> Float {
+    let edgeKm = Float(edgeLengthKm(res))
+    let circumferenceKm: Float = 40075.017
+    let fraction = (4.0 * edgeKm) / circumferenceKm
+    return fraction * 360.0
 }
