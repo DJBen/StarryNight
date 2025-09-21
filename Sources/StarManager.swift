@@ -331,29 +331,24 @@ public class StarManager: StarManaging, @unchecked Sendable {
             }
         }
         
-        // Convert lat/lon vertices to GeoCoord for H3 (convert degrees to radians)
+        // Convert lat/lon vertices to LatLng for H3 (convert degrees to radians)
         let geoCoords = vertices.map { vertex in
-            GeoCoord(lat: vertex.latitude * .pi / 180.0, lon: vertex.longitude * .pi / 180.0)
+            LatLng(lat: vertex.latitude * .pi / 180.0, lng: vertex.longitude * .pi / 180.0)
         }
-        
-        // Create polygon for H3 polyfill
-        let geofence = Geofence(numVerts: Int32(geoCoords.count), verts: UnsafeMutablePointer<GeoCoord>.allocate(capacity: geoCoords.count))
-        for (index, coord) in geoCoords.enumerated() {
-            geofence.verts[index] = coord
-        }
-        defer {
-            geofence.verts.deallocate()
-        }
-        
-        var polygon = GeoPolygon(geofence: geofence, numHoles: 0, holes: nil)
         
         // Determine the appropriate H3 level by checking if all vertices fall in the same cell
         var useLevel = 0
         
         for testLevel in 0...2 {
-            let h3Indices = geoCoords.map { coord in
-                withUnsafePointer(to: coord) { coordPtr in
-                    geoToH3(coordPtr, Int32(testLevel))
+            let h3Indices: [H3Index] = geoCoords.map { coord in
+                withUnsafePointer(to: coord) { coordPtr -> H3Index in
+                    var out: H3Index = 0
+                    let err = latLngToCell(coordPtr, Int32(testLevel), &out)
+                    if err != 0 {
+                        // If H3 reports an error, return 0 (invalid index) for this coord
+                        return 0
+                    }
+                    return out
                 }
             }
             let uniqueIndices = Set(h3Indices)
@@ -372,18 +367,10 @@ public class StarManager: StarManaging, @unchecked Sendable {
             }
         }
         
-        // Get H3 cells covering the polygon at the determined level
-        let maxCells = maxPolyfillSize(&polygon, Int32(useLevel))
-        let h3Cells = UnsafeMutablePointer<H3Index>.allocate(capacity: Int(maxCells))
-        defer {
-            h3Cells.deallocate()
-        }
-        
-        polyfill(&polygon, Int32(useLevel), h3Cells)
+        let h3Cells = H3Utils.h3Cells(inViewport: vertices, resolution: Int32(useLevel))
         
         // Query stars from each H3 cell
-        for i in 0..<Int(maxCells) {
-            let h3Index = h3Cells[i]
+        for h3Index in h3Cells {
             if h3Index != 0 { // Valid H3 index
                 // Convert H3Index to string
                 let bufferSize = 17 // H3 string representation needs max 16 chars + null terminator
@@ -421,18 +408,24 @@ public class StarManager: StarManaging, @unchecked Sendable {
         // Convert cartesian coordinate to latitude/longitude
         let (latitude, longitude) = cartesianToLatLon(coordinate)
         
-        // Convert to GeoCoord for H3
-        let geoCoord = GeoCoord(lat: latitude * .pi / 180.0, lon: longitude * .pi / 180.0)
-        
+        // Convert to LatLng for H3
+        let geoCoord = LatLng(lat: latitude * .pi / 180.0, lng: longitude * .pi / 180.0)
+
         // Get H3 indices for different resolution levels
         let h3_0_index = withUnsafePointer(to: geoCoord) { coordPtr in
-            geoToH3(coordPtr, 0)
+            var out: H3Index = 0
+            _ = latLngToCell(coordPtr, 0, &out)
+            return out
         }
         let h3_1_index = withUnsafePointer(to: geoCoord) { coordPtr in
-            geoToH3(coordPtr, 1)
+            var out: H3Index = 0
+            _ = latLngToCell(coordPtr, 1, &out)
+            return out
         }
         let h3_2_index = withUnsafePointer(to: geoCoord) { coordPtr in
-            geoToH3(coordPtr, 2)
+            var out: H3Index = 0
+            _ = latLngToCell(coordPtr, 2, &out)
+            return out
         }
         
         // Convert H3 indices to strings for database queries
