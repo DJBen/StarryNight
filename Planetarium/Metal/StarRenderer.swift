@@ -14,25 +14,7 @@ private let starToWorldTransform = float3x3(
     SIMD3<Float>(0, 1, 0)
 )
 
-private func dynamicExposureMultipler(fov: Float) -> Float {
-    3 * pow(max(1, 105 / fov), 1.65)
-}
-
-private func dynamicFNumber(fov: Float) -> Float {
-    let fovMin: Float = 5
-    let fovMax: Float = 105
-    let fNumberMin: Float = 5
-    let fNumberMax: Float = 3
-
-    if fov >= fovMax {
-        return fNumberMax
-    } else if fov <= fovMin {
-        return fNumberMin
-    } else {
-        let fraction = (fovMax - fov) / (fovMax - fovMin)
-        return fNumberMax + (fNumberMin - fNumberMax) * fraction
-    }
-}
+// Dynamic exposure and f-number are now computed in the shader based on uniforms.fov
 
 /// Renders brightest stars as instanced billboards. Owns its own Metal resources.
 final class StarRenderer {
@@ -49,7 +31,7 @@ final class StarRenderer {
     private var brightestStarInstances: [StarInstance] = []
     private var h3StarCache: [H3Index: [StarInstance]] = [:]
     private var activeH3CellsByRes: [Int: Set<H3Index>] = [0: [], 1: [], 2: []]
-    private var previousFov: Float = -1
+    // No need to track previous FOV for instance rebuilding; instances are FOV-independent now
 
     init(device: MTLDevice, view: MTKView) {
         self.device = device
@@ -71,6 +53,11 @@ final class StarRenderer {
 
         // Geometry buffers
         (quadVertexBuffer, quadIndexBuffer) = StarRenderer.createQuad(device: device)
+
+        // Preload brightest stars (FOV-independent now)
+        self.brightestStarInstances = starManager.brightestStars().map { 
+            StarRenderer.starToInstance($0) 
+        }
     }
 
     func draw(
@@ -80,10 +67,6 @@ final class StarRenderer {
         time: Float,
         fov: Float
     ) {
-        defer {
-            previousFov = fov
-        }
-
         // 1. Determine which resolution levels to show
         var resolutionsToShow: [Int32] = [0]
         if fov < fovThresholdDegrees(forRes: 0) { resolutionsToShow.append(1) }
@@ -107,13 +90,6 @@ final class StarRenderer {
         }
 
         var starInstanceBufferNeedsChange = false
-        if fov != previousFov {
-            starInstanceBufferNeedsChange = true
-            // Load brightest stars
-            self.brightestStarInstances = starManager.brightestStars().map {
-                StarRenderer.starToInstance($0, fov: fov)
-            }
-        }
 
         // 3. Update active cells and fetch new star data if needed
         for res in 0...2 {
@@ -123,22 +99,15 @@ final class StarRenderer {
                 newCells = Set(H3Utils.h3Cells(inViewport: latLngVertices, resolution: res32))
             }
 
-            if fov != previousFov || activeH3CellsByRes[res] != newCells {
+            if activeH3CellsByRes[res] != newCells {
                 starInstanceBufferNeedsChange = true
                 activeH3CellsByRes[res] = newCells
                 
                 // Fetch data for cells not in cache
                 for cell in newCells {
-                    if let starInstances = h3StarCache[cell] {
-                        for index in (0..<starInstances.count) {
-                            h3StarCache[cell]![index].exposureMultiplier = dynamicExposureMultipler(fov: fov)
-                            h3StarCache[cell]![index].fNumber = dynamicFNumber(fov: fov)
-                        }
-                    } else  {
+                    if h3StarCache[cell] == nil {
                         let stars = starManager.stars(inH3Cell: cell, maximumMagnitude: nil)
-                        h3StarCache[cell] = stars.map {
-                            StarRenderer.starToInstance($0, fov: fov)
-                        }
+                        h3StarCache[cell] = stars.map { StarRenderer.starToInstance($0) }
                     }
                 }
             }
@@ -245,7 +214,7 @@ final class StarRenderer {
         return try device.makeRenderPipelineState(descriptor: descriptor)
     }
 
-    private static func starToInstance(_ star: Star, fov: Float) -> StarInstance {
+    private static func starToInstance(_ star: Star) -> StarInstance {
         let coord = simd_normalize(SIMD3<Float>(Float(star.coordinate.x), Float(star.coordinate.y), Float(star.coordinate.z)))
         let converted = starToWorldTransform * coord
 
@@ -254,10 +223,9 @@ final class StarRenderer {
             position: converted * 10.0,
             magnitude: Float(star.magnitude),
             color: SIMD4<Float>(color.x, color.y, color.z, 1.0),
-            fNumber: dynamicFNumber(fov: fov),
-            exposureMultiplier: dynamicExposureMultipler(fov: fov),
             sensorPixelSize: 4.63e-6,
             waveLength: averageWavelength(for: star) * 10e-9,
+            _pad0: .zero,
         )
     }
 

@@ -40,9 +40,27 @@ vertex StarVaryings star_vertex(
     // https://en.wikipedia.org/wiki/Apparent_magnitude
     // flux relative to mag 0
     float flux = pow(10, -0.4 * star.magnitude);
+    // Compute dynamic exposure and f-number from FOV (moved from CPU to GPU)
+    float fov = uniforms.fov;
+    // dynamicFNumber
+    const float fovMin = 5.0;
+    const float fovMax = 105.0;
+    const float fNumberMin = 3.5;
+    const float fNumberMax = 2.8;
+    float fNumber;
+    if (fov >= fovMax) {
+        fNumber = fNumberMax;
+    } else if (fov <= fovMin) {
+        fNumber = fNumberMin;
+    } else {
+        float fraction = (fovMax - fov) / (fovMax - fovMin);
+        fNumber = fNumberMax + (fNumberMin - fNumberMax) * fraction;
+    }
+    // dynamicExposureMultipler
+    float exposureMultiplier = 2.8 * pow(max(1.0, 105.0 / max(fov, 1e-4)), 1.75);
 
-    float omega_0 = 0.9 * star.waveLength * star.fNumber;
-    float multiplier = flux * star.exposureMultiplier;
+    float omega_0 = 0.9 * star.waveLength * fNumber;
+    float multiplier = flux * exposureMultiplier;
 
     // Per-instance phase hash (kept) and time for flicker
     float h = sin((float)instanceID * 12.9898 + 78.233) * 43758.5453;

@@ -62,10 +62,9 @@ typedef struct {
     simd_float3 position;
     float magnitude;
     simd_float4 color;
-    float fNumber;
-    float exposureMultiplier;
     float sensorPixelSize; // Size of the pixel size of sensor, e.g. 4.63e-6.
     float waveLength;
+    simd_float2 _pad0; // Padding to make the size a multiple of 16 bytes
 } StarInstance;
 
 #endif /* ShaderTypes_h */
