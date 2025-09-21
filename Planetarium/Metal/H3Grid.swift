@@ -113,7 +113,7 @@ let edgeLengthTableKm: [Float] = [
 
 /// Compute the FOV threshold in degrees for a given H3 resolution.
 /// If current FOV is below this threshold, it means the viewport can fit ~4x the edge length of that resolution.
-public func fovThresholdDegrees(forRes res: Int32, multiplier: Float = 2.0) -> Float {
+public func fovThresholdDegrees(forRes res: Int32, multiplier: Float = 3.0) -> Float {
     guard res >= 0 && res < edgeLengthTableKm.count else {
         fatalError("Invalid H3 resolution: must be between 0 and 15")
     }

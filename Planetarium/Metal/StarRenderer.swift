@@ -1,22 +1,63 @@
+import Ch3
 import Metal
 import MetalKit
 import simd
 import StarryNight
+
+// The coordinate system for rendering stars is different from the one used for H3 grids.
+// Star data is in a right-handed system where Y is up.
+// The renderer uses a right-handed system where Z is up.
+// Combine those: swizzle: (x, y, z) -> (x, z, -y), rotation: 90 degrees around Y-axis
+private let starToWorldTransform = float3x3(
+    SIMD3<Float>(0, 0, -1),
+    SIMD3<Float>(-1, 0, 0),
+    SIMD3<Float>(0, 1, 0)
+)
+
+private func dynamicExposureMultipler(fov: Float) -> Float {
+    3 * pow(max(1, 105 / fov), 1.65)
+}
+
+private func dynamicFNumber(fov: Float) -> Float {
+    let fovMin: Float = 5
+    let fovMax: Float = 105
+    let fNumberMin: Float = 5
+    let fNumberMax: Float = 3
+
+    if fov >= fovMax {
+        return fNumberMax
+    } else if fov <= fovMin {
+        return fNumberMin
+    } else {
+        let fraction = (fovMax - fov) / (fovMax - fovMin)
+        return fNumberMax + (fNumberMin - fNumberMax) * fraction
+    }
+}
 
 /// Renders brightest stars as instanced billboards. Owns its own Metal resources.
 final class StarRenderer {
     private let device: MTLDevice
     private let pipelineState: MTLRenderPipelineState
     private let depthState: MTLDepthStencilState
+    private let starManager: StarManaging
 
     private var quadVertexBuffer: MTLBuffer?
     private var quadIndexBuffer: MTLBuffer?
-
-    private(set) var instances: [StarInstance] = []
     private var instanceBuffer: MTLBuffer?
+
+    // Data for adaptive rendering
+    private var brightestStarInstances: [StarInstance] = []
+    private var h3StarCache: [H3Index: [StarInstance]] = [:]
+    private var activeH3CellsByRes: [Int: Set<H3Index>] = [0: [], 1: [], 2: []]
+    private var previousFov: Float = -1
 
     init(device: MTLDevice, view: MTKView) {
         self.device = device
+
+        guard let sm = try? StarManager() else {
+            fatalError("StarManager could not be initialized.")
+        }
+        self.starManager = sm
 
         // Pipeline
         self.pipelineState = try! StarRenderer.createPipeline(device: device, view: view)
@@ -30,16 +71,107 @@ final class StarRenderer {
 
         // Geometry buffers
         (quadVertexBuffer, quadIndexBuffer) = StarRenderer.createQuad(device: device)
-
-        // Instance data
-        (instances, instanceBuffer) = StarRenderer.loadBrightestStars(device: device)
     }
 
-    func draw(renderEncoder: MTLRenderCommandEncoder, projectionMatrix: matrix_float4x4, viewMatrix: matrix_float4x4, time: Float) {
+    func draw(
+        renderEncoder: MTLRenderCommandEncoder,
+        projectionMatrix: matrix_float4x4,
+        viewMatrix: matrix_float4x4,
+        time: Float,
+        fov: Float
+    ) {
+        defer {
+            previousFov = fov
+        }
+
+        // 1. Determine which resolution levels to show
+        var resolutionsToShow: [Int32] = [0]
+        if fov < fovThresholdDegrees(forRes: 0) { resolutionsToShow.append(1) }
+        if fov < fovThresholdDegrees(forRes: 1) { resolutionsToShow.append(2) }
+
+        // 2. Determine visible H3 cells for each resolution
+        let viewportCorners = [
+            simd_float3(-1, -1, 1), simd_float3(1, -1, 1),
+            simd_float3(1, 1, 1), simd_float3(-1, 1, 1)
+        ]
+        let invMVP = (projectionMatrix * viewMatrix).inverse
+        let worldCorners = viewportCorners.map {
+            let worldPos = invMVP * simd_float4($0, 1.0)
+            return simd_normalize(SIMD3<Float>(x: worldPos.x, y: worldPos.y, z: worldPos.z) / worldPos.w)
+        }
+        let latLngVertices = worldCorners.map { worldCoord -> (latitude: Double, longitude: Double) in
+            let eci = starToWorldTransform.inverse * worldCoord
+            let lat = asin(eci.z)
+            let lon = atan2(eci.y, eci.x)
+            return (latitude: Double(lat) * 180.0 / .pi, longitude: Double(lon) * 180.0 / .pi)
+        }
+
+        var starInstanceBufferNeedsChange = false
+        if fov != previousFov {
+            starInstanceBufferNeedsChange = true
+            // Load brightest stars
+            self.brightestStarInstances = starManager.brightestStars().map {
+                StarRenderer.starToInstance($0, fov: fov)
+            }
+        }
+
+        // 3. Update active cells and fetch new star data if needed
+        for res in 0...2 {
+            let res32 = Int32(res)
+            var newCells = Set<H3Index>()
+            if resolutionsToShow.contains(res32) {
+                newCells = Set(H3Utils.h3Cells(inViewport: latLngVertices, resolution: res32))
+            }
+
+            if fov != previousFov || activeH3CellsByRes[res] != newCells {
+                starInstanceBufferNeedsChange = true
+                activeH3CellsByRes[res] = newCells
+                
+                // Fetch data for cells not in cache
+                for cell in newCells {
+                    if let starInstances = h3StarCache[cell] {
+                        for index in (0..<starInstances.count) {
+                            h3StarCache[cell]![index].exposureMultiplier = dynamicExposureMultipler(fov: fov)
+                            h3StarCache[cell]![index].fNumber = dynamicFNumber(fov: fov)
+                        }
+                    } else  {
+                        let stars = starManager.stars(inH3Cell: cell, maximumMagnitude: nil)
+                        h3StarCache[cell] = stars.map {
+                            StarRenderer.starToInstance($0, fov: fov)
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 4. Re-assemble instances and recreate buffer only if needed
+        if starInstanceBufferNeedsChange || self.instanceBuffer == nil {
+            var allInstances = brightestStarInstances
+            for (res, cells) in activeH3CellsByRes {
+                if resolutionsToShow.contains(Int32(res)) {
+                    for cell in cells {
+                        if let cachedInstances = h3StarCache[cell] {
+                            allInstances.append(contentsOf: cachedInstances)
+                        }
+                    }
+                }
+            }
+            
+            if !allInstances.isEmpty {
+                self.instanceBuffer = device.makeBuffer(bytes: allInstances, length: allInstances.count * MemoryLayout<StarInstance>.stride, options: .storageModeShared)
+                self.instanceBuffer?.label = "Dynamic Star Instances"
+            } else {
+                self.instanceBuffer = nil // Clear buffer if no stars are visible
+            }
+        }
+
+        // 5. Draw using the current state of the instance buffer
         guard let quadVB = quadVertexBuffer,
               let quadIB = quadIndexBuffer,
-              let instBuf = instanceBuffer,
-              instances.count > 0 else { return }
+              let currentInstanceBuffer = self.instanceBuffer,
+              currentInstanceBuffer.length > 0 else { return }
+        
+        let instanceCount = currentInstanceBuffer.length / MemoryLayout<StarInstance>.stride
 
         renderEncoder.pushDebugGroup("Stars")
         renderEncoder.setRenderPipelineState(pipelineState)
@@ -51,13 +183,14 @@ final class StarRenderer {
             modelViewMatrix: viewMatrix,
             blendMode: 0,
             transparency: time,
+            fov: fov,
             forceColor: false,
             color: SIMD4<Float>(0,0,0,0)
         )
         renderEncoder.setVertexBytes(&uniforms, length: MemoryLayout<Uniforms>.size, index: BufferIndex.uniforms.rawValue)
 
         renderEncoder.setVertexBuffer(quadVB, offset: 0, index: 0)
-        renderEncoder.setVertexBuffer(instBuf, offset: 0, index: 1)
+        renderEncoder.setVertexBuffer(currentInstanceBuffer, offset: 0, index: 1)
 
         renderEncoder.drawIndexedPrimitives(
             type: .triangle,
@@ -65,7 +198,7 @@ final class StarRenderer {
             indexType: .uint16,
             indexBuffer: quadIB,
             indexBufferOffset: 0,
-            instanceCount: instances.count
+            instanceCount: instanceCount
         )
         renderEncoder.popDebugGroup()
     }
@@ -112,38 +245,20 @@ final class StarRenderer {
         return try device.makeRenderPipelineState(descriptor: descriptor)
     }
 
-    private static func loadBrightestStars(device: MTLDevice) -> ([StarInstance], MTLBuffer?) {
-        guard let starManager = try? StarManager() else {
-            return ([], nil)
-        }
-        let brightest = starManager.brightestStars()
-        let stars = brightest.map { star -> StarInstance in
-            let coord = simd_normalize(SIMD3<Float>(Float(star.coordinate.x), Float(star.coordinate.y), Float(star.coordinate.z)))
-            var converted = SIMD3<Float>(coord.x, coord.z, -coord.y)
-            let rotY = float3x3(
-                SIMD3<Float>(0, 0, -1),
-                SIMD3<Float>(0, 1, 0),
-                SIMD3<Float>(1, 0, 0)
-            )
-            converted = rotY * converted
+    private static func starToInstance(_ star: Star, fov: Float) -> StarInstance {
+        let coord = simd_normalize(SIMD3<Float>(Float(star.coordinate.x), Float(star.coordinate.y), Float(star.coordinate.z)))
+        let converted = starToWorldTransform * coord
 
-            let color = spectralColor(for: star)
-            return StarInstance(
-                position: converted * 10.0,
-                magnitude: Float(star.magnitude),
-                color: SIMD4<Float>(color.x, color.y, color.z, 1.0),
-                lambdaN: averageWavelength(for: star) * 10e-9 * 3,
-                exposureMultiplier: 10,
-                sensorPixelSize: 4.63e-6,
-                _pad0: .zero
-            )
-        }
-        var buffer: MTLBuffer?
-        if !stars.isEmpty {
-            buffer = device.makeBuffer(bytes: stars, length: stars.count * MemoryLayout<StarInstance>.stride, options: .storageModeShared)
-            buffer?.label = "Star Instances"
-        }
-        return (stars, buffer)
+        let color = spectralColor(for: star)
+        return StarInstance(
+            position: converted * 10.0,
+            magnitude: Float(star.magnitude),
+            color: SIMD4<Float>(color.x, color.y, color.z, 1.0),
+            fNumber: dynamicFNumber(fov: fov),
+            exposureMultiplier: dynamicExposureMultipler(fov: fov),
+            sensorPixelSize: 4.63e-6,
+            waveLength: averageWavelength(for: star) * 10e-9,
+        )
     }
 
     private static func spectralColor(for star: Star) -> SIMD3<Float> {

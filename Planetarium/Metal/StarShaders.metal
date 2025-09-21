@@ -41,7 +41,7 @@ vertex StarVaryings star_vertex(
     // flux relative to mag 0
     float flux = pow(10, -0.4 * star.magnitude);
 
-    float omega_0 = 0.9 * star.lambdaN;
+    float omega_0 = 0.9 * star.waveLength * star.fNumber;
     float multiplier = flux * star.exposureMultiplier;
 
     // Per-instance phase hash (kept) and time for flicker
@@ -74,7 +74,11 @@ vertex StarVaryings star_vertex(
     // Size in meters
     float size = omega_0 * sqrt(-0.5 * log(1 / 255.0 / multiplier));
 
-    starView.xy += quadPos.xy * size / star.sensorPixelSize * 0.01;
+    // Counteract perspective scaling by making the quad size proportional to tan(fov/2)
+    float fov_rad = uniforms.fov * (3.14159265359 / 180.0);
+    float perspective_scale = tan(fov_rad / 2.0);
+    
+    starView.xy += quadPos.xy * size / star.sensorPixelSize * 0.015 * perspective_scale;
 
     out.position = uniforms.projectionMatrix * starView;
     out.uv = quadPos.xy * 0.5 + 0.5;

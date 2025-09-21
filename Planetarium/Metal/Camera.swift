@@ -34,8 +34,8 @@ class Camera {
     
     // Field of view properties
     private var currentFOV: Float = 90.0
-    private let minFOV: Float = 2.5       // Maximum zoom (narrowest view)
-    private let maxFOV: Float = 105.0     // Minimum zoom (widest view)
+    private let minFOV: Float = 5       // Maximum zoom (narrowest view)
+    private let maxFOV: Float = 105.0   // Minimum zoom (widest view)
 
     // Projection matrix properties
     private var aspectRatio: Float = 1.0

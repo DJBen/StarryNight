@@ -52,6 +52,7 @@ typedef struct
     
     uint32_t blendMode;
     float transparency;
+    float fov;
     
     bool forceColor;
     vector_float4 color;
@@ -61,10 +62,10 @@ typedef struct {
     simd_float3 position;
     float magnitude;
     simd_float4 color;
-    float lambdaN; // Wavelength * f-number
+    float fNumber;
     float exposureMultiplier;
     float sensorPixelSize; // Size of the pixel size of sensor, e.g. 4.63e-6.
-    float _pad0;
+    float waveLength;
 } StarInstance;
 
 #endif /* ShaderTypes_h */

@@ -20,7 +20,6 @@ final class H3GridRenderer {
         SIMD4<Float>(0.8, 0.8, 0.8, 0.55), // res0
         SIMD4<Float>(0.2, 0.7, 1.0, 0.55), // res1
         SIMD4<Float>(0.2, 1.0, 0.6, 0.45), // res2
-        SIMD4<Float>(1.0, 0.8, 0.2, 0.35)  // res3
     ]
     var pixelWidth: Float = 2
     private var viewportSize: SIMD2<Float> = .zero
@@ -52,10 +51,7 @@ final class H3GridRenderer {
         if currentFOVDegrees < fovThresholdDegrees(forRes: 1) {
             resolutionsToShow.append(2)
         }
-        if currentFOVDegrees < fovThresholdDegrees(forRes: 2) {
-            resolutionsToShow.append(3)
-        }
-
+        
         // Project viewport corners to world space to find visible H3 cells
         let viewportCorners = [
             simd_float3(-1, -1, 1), simd_float3(1, -1, 1),
@@ -101,6 +97,7 @@ final class H3GridRenderer {
             modelViewMatrix: viewMatrix,
             blendMode: 0,
             transparency: 1.0,
+            fov: currentFOVDegrees,
             forceColor: false,
             color: SIMD4<Float>(0,0,0,0)
         )
