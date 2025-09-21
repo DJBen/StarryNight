@@ -15,7 +15,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/stephencelis/SQLite.swift.git", from: "0.15.0"),
-        .package(url: "https://github.com/DJBen/Ch3.git", from: "3.6.0-fix"),
+        .package(url: "https://github.com/DJBen/Ch3.git", from: "4.3.0"),
     ],
     targets: [
         .target(

@@ -22,12 +22,19 @@ public struct GridLine: Sendable {
 /// - Parameters:
 ///   - radius: scale factor applied to unit-sphere coordinates to place them in world space (match stars at ~10.0).
 /// - Returns: Unique undirected segments covering res0 cell boundaries in StarryNight's render coordinate space.
-public func makeGridLines(forRes res: Int32, radius: Float = 10.0) -> [GridLine] {
+public func gridLines(
+    forRes res: Int32,
+    radius: Float = 10.0,
+) -> [GridLine] {
     // 1) Find all indexes at the given resolution by expanding k-rings from an origin until reaching expected count.
-    let origin = withUnsafePointer(to: GeoCoord(lat: 0.0, lon: 0.0)) { geoPtr in
-        geoToH3(geoPtr, res)
+    let origin = withUnsafePointer(to: LatLng(lat: 0.0, lng: 0.0)) { geoPtr in
+        var out: H3Index = 0
+        _ = latLngToCell(geoPtr, res, &out)
+        return out
     }
-    let expected = max(0, Int(numHexagons(res)))
+    var numCells: Int64 = 0
+    getNumCells(res, &numCells)
+    let expected = max(0, numCells)
 
     var discovered = Set<UInt64>()
     if origin != 0 {
@@ -40,7 +47,7 @@ public func makeGridLines(forRes res: Int32, radius: Float = 10.0) -> [GridLine]
         let maxCount = Int(maxKringSize(k))
         let buffer = UnsafeMutablePointer<H3Index>.allocate(capacity: maxCount)
         defer { buffer.deallocate() }
-        kRing(origin, k, buffer)
+        gridDisk(origin, k, buffer)
         for i in 0..<maxCount {
             let idx = buffer[i]
             if idx != 0 { discovered.insert(idx) }
@@ -67,18 +74,18 @@ public func makeGridLines(forRes res: Int32, radius: Float = 10.0) -> [GridLine]
     var lines: [GridLine] = []
 
     for idx in discovered {
-        var gb = GeoBoundary() // zero-initialized; verts capacity = MAX_CELL_BNDRY_VERTS
+        var cellBoundary = CellBoundary()
         // Fetch boundary in radians
-        h3ToGeoBoundary(idx, &gb)
+        cellToBoundary(idx, &cellBoundary)
 
-        let n = Int(gb.numVerts)
+        let n = Int(cellBoundary.numVerts)
         guard n >= 3 else { continue }
 
         // Copy C fixed array (tuple) to Swift array for indexed access
-        var verts: [GeoCoord] = []
+        var verts: [LatLng] = []
         verts.reserveCapacity(n)
-        withUnsafePointer(to: &gb.verts) { tPtr in
-            tPtr.withMemoryRebound(to: GeoCoord.self, capacity: Int(MAX_CELL_BNDRY_VERTS)) { gPtr in
+        withUnsafePointer(to: &cellBoundary.verts) { tPtr in
+            tPtr.withMemoryRebound(to: LatLng.self, capacity: Int(MAX_CELL_BNDRY_VERTS)) { gPtr in
                 let buf = UnsafeBufferPointer(start: gPtr, count: n)
                 verts.append(contentsOf: buf)
             }
@@ -90,11 +97,11 @@ public func makeGridLines(forRes res: Int32, radius: Float = 10.0) -> [GridLine]
             let b = verts[(i+1) % n]
             // Convert to unit sphere (ECEF): x=cos(lat)cos(lon) y=sin(lat) z=cos(lat)sin(lon)
             let ca = Float(cos(a.lat)); let sa = Float(sin(a.lat))
-            let cla = Float(cos(a.lon)); let sla = Float(sin(a.lon))
+            let cla = Float(cos(a.lng)); let sla = Float(sin(a.lng))
             var pa = simd_float3(ca * cla, sa, ca * sla)
 
             let cb = Float(cos(b.lat)); let sb = Float(sin(b.lat))
-            let clb = Float(cos(b.lon)); let slb = Float(sin(b.lon))
+            let clb = Float(cos(b.lng)); let slb = Float(sin(b.lng))
             var pb = simd_float3(cb * clb, sb, cb * slb)
 
             // Apply same axis mapping as stars: (x,y,z) -> (y,z,x)
@@ -115,9 +122,10 @@ public func makeGridLines(forRes res: Int32, radius: Float = 10.0) -> [GridLine]
 
 /// Compute the FOV threshold in degrees for a given H3 resolution.
 /// If current FOV is below this threshold, it means the viewport can fit ~4x the edge length of that resolution.
-public func fovThresholdDegrees(forRes res: Int32) -> Float {
-    let edgeKm = Float(edgeLengthKm(res))
+public func fovThresholdDegrees(index: H3Index) -> Float {
+    var edgeKm: Double = 0
+    edgeLengthKm(index, &edgeKm)
     let circumferenceKm: Float = 40075.017
-    let fraction = (4.0 * edgeKm) / circumferenceKm
+    let fraction = (4.0 * Float(edgeKm)) / circumferenceKm
     return fraction * 360.0
 }

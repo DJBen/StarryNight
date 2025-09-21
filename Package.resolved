@@ -1,13 +1,13 @@
 {
-  "originHash" : "dbe13c60a857688269897725b5e54ff6deb4f4b1379662be0b3ee6c00ac5eced",
+  "originHash" : "d2985ce838c52c792f6f2c28fdaed0ef86e4d1a8a72dde2f6f01f1ee9266b570",
   "pins" : [
     {
       "identity" : "ch3",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/DJBen/Ch3.git",
       "state" : {
-        "revision" : "ab0c4d6351bfd966ecb6bd73f95fe569624a038d",
-        "version" : "3.6.0-fix"
+        "revision" : "abe545c40bb812eb0a3713ecfdea4a8ddf91d194",
+        "version" : "4.3.0"
       }
     },
     {
