@@ -18,43 +18,15 @@ public struct GridLine: Sendable {
     }
 }
 
-/// Build all unique boundary segments for the entire set of H3 cells at resolution 0.
+/// Build all unique boundary segments for a given set of H3 cells.
 /// - Parameters:
+///   - cells: The set of H3 cells to generate grid lines for.
 ///   - radius: scale factor applied to unit-sphere coordinates to place them in world space (match stars at ~10.0).
-/// - Returns: Unique undirected segments covering res0 cell boundaries in StarryNight's render coordinate space.
+/// - Returns: Unique undirected segments covering the cell boundaries in StarryNight's render coordinate space.
 public func gridLines(
-    forRes res: Int32,
-    radius: Float = 10.0,
+    forCells cells: [H3Index],
+    radius: Float = 10.0
 ) -> [GridLine] {
-    // 1) Find all indexes at the given resolution by expanding k-rings from an origin until reaching expected count.
-    let origin = withUnsafePointer(to: LatLng(lat: 0.0, lng: 0.0)) { geoPtr in
-        var out: H3Index = 0
-        _ = latLngToCell(geoPtr, res, &out)
-        return out
-    }
-    var numCells: Int64 = 0
-    getNumCells(res, &numCells)
-    let expected = max(0, numCells)
-
-    var discovered = Set<UInt64>()
-    if origin != 0 {
-        discovered.insert(origin)
-    }
-
-    // Increase k until we have all, with a hard cap to avoid runaway (res<=3 is small)
-    var k: Int32 = 1
-    while discovered.count < expected && k <= 30 {
-        let maxCount = Int(maxKringSize(k))
-        let buffer = UnsafeMutablePointer<H3Index>.allocate(capacity: maxCount)
-        defer { buffer.deallocate() }
-        gridDisk(origin, k, buffer)
-        for i in 0..<maxCount {
-            let idx = buffer[i]
-            if idx != 0 { discovered.insert(idx) }
-        }
-        k += 1
-    }
-
     // 2) For each cell, fetch its boundary and emit edges, de-duplicated.
     struct Key: Hashable { let a:Int64; let b:Int64 }
     func quantKey(_ p: simd_float3) -> Int64 {
@@ -73,7 +45,7 @@ public func gridLines(
     var seen = Set<Key>()
     var lines: [GridLine] = []
 
-    for idx in discovered {
+    for idx in cells {
         var cellBoundary = CellBoundary()
         // Fetch boundary in radians
         cellToBoundary(idx, &cellBoundary)
@@ -120,12 +92,34 @@ public func gridLines(
     return lines
 }
 
+let edgeLengthTableKm: [Float] = [
+    1281.256011,
+    483.0568391,
+    182.5129565,
+    68.97922179,
+    26.07175968,
+    9.854090990,
+    3.724532667,
+    1.406475763,
+    0.531414010,
+    0.200786148,
+    0.075863783,
+    0.028663897,
+    0.010830188,
+    0.004092010,
+    0.001546100,
+    0.000584169
+]
+
 /// Compute the FOV threshold in degrees for a given H3 resolution.
 /// If current FOV is below this threshold, it means the viewport can fit ~4x the edge length of that resolution.
-public func fovThresholdDegrees(index: H3Index) -> Float {
-    var edgeKm: Double = 0
-    edgeLengthKm(index, &edgeKm)
+public func fovThresholdDegrees(forRes res: Int32, multiplier: Float = 2.0) -> Float {
+    guard res >= 0 && res < edgeLengthTableKm.count else {
+        fatalError("Invalid H3 resolution: must be between 0 and 15")
+    }
+
+    let edgeKm = edgeLengthTableKm[Int(res)]
     let circumferenceKm: Float = 40075.017
-    let fraction = (4.0 * Float(edgeKm)) / circumferenceKm
+    let fraction = (multiplier * 2.0 * edgeKm) / circumferenceKm
     return fraction * 360.0
 }

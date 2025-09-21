@@ -9,13 +9,11 @@ final class H3GridRenderer {
     private let pipelineState: MTLRenderPipelineState
     private let depthState: MTLDepthStencilState
 
-    struct LineInstance { var p0: simd_float3; var p1: simd_float3; var level: UInt32 }
-
-    private var lineInstances: [LineInstance] = []
-    private var lineBuffer: MTLBuffer?
-
-    // Keep per-level ranges for adaptive draw
-    private var levelRanges: [Int: Range<Int>] = [:]
+    struct LineInstance {
+        var p0: simd_float3
+        var p1: simd_float3
+        var level: UInt32
+    }
 
     // Config
     var colorsByLevel: [SIMD4<Float>] = [
@@ -39,24 +37,6 @@ final class H3GridRenderer {
         ds.isDepthWriteEnabled = false
         guard let depth = device.makeDepthStencilState(descriptor: ds) else { fatalError("grid depth state") }
         self.depthState = depth
-
-        // Build geometry for res 0..3
-        var all: [LineInstance] = []
-        var cursor = 0
-        for level in 0...3 {
-            let res = Int32(level)
-            let lines = makeGridLines(forRes: res, radius: 10.0)
-            let start = cursor
-            all.append(contentsOf: lines.map { LineInstance(p0: $0.p0, p1: $0.p1, level: UInt32(level)) })
-            cursor = all.count
-            levelRanges[level] = start..<cursor
-        }
-        self.lineInstances = all
-        if !lineInstances.isEmpty {
-            let len = lineInstances.count * MemoryLayout<LineInstance>.stride
-            self.lineBuffer = device.makeBuffer(bytes: lineInstances, length: len, options: .storageModeShared)
-            self.lineBuffer?.label = "H3 Grid Lines"
-        }
     }
 
     func drawableSizeWillChange(to size: CGSize) {
@@ -64,7 +44,52 @@ final class H3GridRenderer {
     }
 
     func draw(renderEncoder: MTLRenderCommandEncoder, projectionMatrix: matrix_float4x4, viewMatrix: matrix_float4x4, currentFOVDegrees: Float) {
-        guard let lineBuffer = lineBuffer, lineInstances.count > 0 else { return }
+        // Adaptive rendering: decide which levels to show
+        var resolutionsToShow: [Int32] = [0]
+        if currentFOVDegrees < fovThresholdDegrees(forRes: 0) {
+            resolutionsToShow.append(1)
+        }
+        if currentFOVDegrees < fovThresholdDegrees(forRes: 1) {
+            resolutionsToShow.append(2)
+        }
+        if currentFOVDegrees < fovThresholdDegrees(forRes: 2) {
+            resolutionsToShow.append(3)
+        }
+
+        // Project viewport corners to world space to find visible H3 cells
+        let viewportCorners = [
+            simd_float3(-1, -1, 1), simd_float3(1, -1, 1),
+            simd_float3(1, 1, 1), simd_float3(-1, 1, 1)
+        ]
+        let invMVP = (projectionMatrix * viewMatrix).inverse
+        let worldCorners = viewportCorners.map {
+            let worldPos = invMVP * simd_float4($0, 1.0)
+            return simd_normalize(SIMD3<Float>(x: worldPos.x, y: worldPos.y, z: worldPos.z) / worldPos.w)
+        }
+        
+        // World space to lat/lng in radians
+        let latLngVertices = worldCorners.map { worldCoord -> (latitude: Double, longitude: Double) in
+            // Star-style mapping is (y,z,x). We need to reverse this to get to the original ECEF-style coords.
+            // Original ECEF: x=cos(lat)cos(lon), y=sin(lat), z=cos(lat)sin(lon)
+            // Star mapping:   x'=y, y'=z, z'=x
+            // So, to reverse: y=x', z=y', x=z'
+            let ecef = simd_float3(worldCoord.z, worldCoord.x, worldCoord.y)
+            
+            let lat = asin(ecef.y)
+            let lon = atan2(ecef.z, ecef.x)
+            return (latitude: Double(lat) * 180.0 / .pi, longitude: Double(lon) * 180.0 / .pi)
+        }
+
+        var allLines: [LineInstance] = []
+        for res in resolutionsToShow {
+            let cells = H3Utils.h3Cells(inViewport: latLngVertices, resolution: res)
+            let lines = gridLines(forCells: cells, radius: 10.0)
+            allLines.append(contentsOf: lines.map { LineInstance(p0: $0.p0, p1: $0.p1, level: UInt32(res)) })
+        }
+
+        guard !allLines.isEmpty else { return }
+        let lineBuffer = device.makeBuffer(bytes: allLines, length: allLines.count * MemoryLayout<LineInstance>.stride, options: .storageModeShared)
+        lineBuffer?.label = "H3 Grid Lines (Dynamic)"
 
         renderEncoder.pushDebugGroup("H3 Grid")
         renderEncoder.setRenderPipelineState(pipelineState)
@@ -81,10 +106,10 @@ final class H3GridRenderer {
         )
         renderEncoder.setVertexBytes(&uniforms, length: MemoryLayout<Uniforms>.size, index: BufferIndex.uniforms.rawValue)
 
-    renderEncoder.setVertexBuffer(lineBuffer, offset: 0, index: 0)
+        renderEncoder.setVertexBuffer(lineBuffer, offset: 0, index: 0)
 
-    var width = pixelWidth
-    var vp = viewportSize
+        var width = pixelWidth
+        var vp = viewportSize
         renderEncoder.setVertexBytes(&width, length: MemoryLayout<Float>.size, index: 4)
         renderEncoder.setVertexBytes(&vp, length: MemoryLayout<SIMD2<Float>>.size, index: 5)
         var colorArray = colorsByLevel
@@ -92,27 +117,8 @@ final class H3GridRenderer {
         renderEncoder.setVertexBytes(&colorArray, length: MemoryLayout<SIMD4<Float>>.stride * colorArray.count, index: 6)
         renderEncoder.setVertexBytes(&numColors, length: MemoryLayout<UInt32>.size, index: 7)
 
-        // Adaptive rendering: decide highest level to show given FOV
-        // If fov < threshold(level), we can show next level
-        let t0 = fovThresholdDegrees(forRes: 0)
-        let t1 = fovThresholdDegrees(forRes: 1)
-        let t2 = fovThresholdDegrees(forRes: 2)
-        let show0 = true
-        let show1 = currentFOVDegrees < t0
-        let show2 = currentFOVDegrees < t1
-        let show3 = currentFOVDegrees < t2
-        print("H3Grid draw fov \(currentFOVDegrees) show0 \(show0) show1 \(show1) show2 \(show2) show3 \(show3) thresholds \(t0) \(t1) \(t2)")
-
-        let vertexCountPerInstance = 4
-        func drawRange(_ r: Range<Int>) {
-            let count = r.count
-            guard count > 0 else { return }
-            renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: vertexCountPerInstance, instanceCount: count, baseInstance: r.lowerBound)
-        }
-        if show0, let r0 = levelRanges[0] { drawRange(r0) }
-        if show1, let r1 = levelRanges[1] { drawRange(r1) }
-        if show2, let r2 = levelRanges[2] { drawRange(r2) }
-        if show3, let r3 = levelRanges[3] { drawRange(r3) }
+        renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: allLines.count)
+        
         renderEncoder.popDebugGroup()
     }
 

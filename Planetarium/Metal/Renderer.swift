@@ -76,10 +76,10 @@ class Renderer: NSObject, MTKViewDelegate {
         self.depthTexture = depthStencilTextures.depthTexture
         self.stencilTexture = depthStencilTextures.stencilTexture
 
-    // Initialize sub-renderers
-    self.skyboxRenderer = SkyboxRenderer(device: self.device, view: metalKitView)
-    self.starRenderer = StarRenderer(device: self.device, view: metalKitView)
-    self.h3GridRenderer = H3GridRenderer(device: self.device, view: metalKitView)
+        // Initialize sub-renderers
+        self.skyboxRenderer = SkyboxRenderer(device: self.device, view: metalKitView)
+        self.starRenderer = StarRenderer(device: self.device, view: metalKitView)
+        self.h3GridRenderer = H3GridRenderer(device: self.device, view: metalKitView)
 
 #if os(macOS) || targetEnvironment(simulator)
         metalKitView.framebufferOnly = false
