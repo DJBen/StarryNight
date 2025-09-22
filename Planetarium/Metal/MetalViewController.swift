@@ -31,6 +31,14 @@ class MetalViewController: PlatformViewController
             action: #selector(resetCamera)
         )
 
+        // Add Options button to navigation bar (right)
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "Options",
+            style: .plain,
+            target: self,
+            action: #selector(showOptions)
+        )
+
         // Create MTKView programmatically
         mtkView = MTKView(frame: view.bounds)
         mtkView.translatesAutoresizingMaskIntoConstraints = false
@@ -63,9 +71,6 @@ class MetalViewController: PlatformViewController
         renderer = newRenderer
 
         renderer.mtkView(mtkView, drawableSizeWillChange: mtkView.drawableSize)
-        renderer.blendMode = BlendMode.transparency
-        renderer.transparency = 0.5
-
         mtkView.delegate = renderer
 
         // Set up camera gestures
@@ -84,5 +89,26 @@ class MetalViewController: PlatformViewController
 
     @objc private func resetCamera() {
         renderer?.camera.resetToDefault()
+    }
+
+    @objc private func showOptions() {
+        #if os(iOS) || os(tvOS)
+        let isGridOn = renderer?.isH3GridVisible ?? true
+        let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        let toggleTitle = isGridOn ? "Hide H3 Grid" : "Show H3 Grid"
+        sheet.addAction(UIAlertAction(title: toggleTitle, style: .default, handler: { [weak self] _ in
+            guard let self = self, let renderer = self.renderer else { return }
+            renderer.isH3GridVisible.toggle()
+        }))
+        sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+
+        // iPad popover anchor
+        if let pop = sheet.popoverPresentationController, let barButton = navigationItem.rightBarButtonItem {
+            pop.barButtonItem = barButton
+        } else {
+            sheet.modalPresentationStyle = .overFullScreen
+        }
+        present(sheet, animated: true)
+        #endif
     }
 }

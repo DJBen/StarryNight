@@ -23,6 +23,8 @@ final class H3GridRenderer {
     ]
     var pixelWidth: Float = 2
     private var viewportSize: SIMD2<Float> = .zero
+    // Visibility toggle
+    var isVisible: Bool = false
 
     init(device: MTLDevice, view: MTKView) {
         self.device = device
@@ -43,6 +45,8 @@ final class H3GridRenderer {
     }
 
     func draw(renderEncoder: MTLRenderCommandEncoder, projectionMatrix: matrix_float4x4, viewMatrix: matrix_float4x4, currentFOVDegrees: Float) {
+        // Respect visibility flag
+        guard isVisible else { return }
         // Adaptive rendering: decide which levels to show
         var resolutionsToShow: [Int32] = [0]
         if currentFOVDegrees < fovThresholdDegrees(forRes: 0) {
@@ -51,7 +55,7 @@ final class H3GridRenderer {
         if currentFOVDegrees < fovThresholdDegrees(forRes: 1) {
             resolutionsToShow.append(2)
         }
-        
+
         // Project viewport corners to world space to find visible H3 cells
         let viewportCorners = [
             simd_float3(-1, -1, 1), simd_float3(1, -1, 1),

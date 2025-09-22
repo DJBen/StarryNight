@@ -132,6 +132,13 @@ class Renderer: NSObject, MTKViewDelegate {
         renderEncoder.setFrontFacing(.counterClockwise)
     }
 
+    // MARK: - Grid visibility control
+
+    public var isH3GridVisible: Bool {
+        get { h3GridRenderer.isVisible }
+        set { h3GridRenderer.isVisible = newValue }
+    }
+
     func draw(in view: MTKView) {
         // This method is kept for compatibility but actual rendering
         // happens through CAMetalDisplayLink when available
