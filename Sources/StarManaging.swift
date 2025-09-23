@@ -27,8 +27,8 @@ public protocol StarManaging: Sendable {
     func stars(inH3Cell h3Index: H3Index, maximumMagnitude magCutoff: Double?) -> [Star]
 
     /// Find the closest star to a given cartesian coordinate
-    func closestStar(to coordinate: SIMD3<Double>, maximumMagnitude magCutoff: Double?, maximumAngularDistance angularDistance: Double?) -> Star?
-    
+    func closeStars(around coordinate: SIMD3<Double>, maximumAngularDistance angularDistance: Double, maximumMagnitude magCutoff: Double?) -> [Star]
+
     /// Search for stars by name or catalog identifier
     func searchStars(matching name: String) -> [Star]
     

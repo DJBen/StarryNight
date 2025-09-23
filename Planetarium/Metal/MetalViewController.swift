@@ -153,8 +153,9 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     }
     
     private func updateSelectedStar(_ star: Star?) {
+        let star = star?.withInfo(starManager: starManager)
         selectedStar = star
-        
+
         if let star = star {
             // Show toolbar with star name
             let displayName = star.info?.displayName ?? "Unknown Star"
@@ -192,8 +193,16 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     
     // MARK: - StarTapDelegate
     
-    func didSelectStar(_ star: Star?) {
-        updateSelectedStar(star)
+    func didSelectStars(_ stars: [Star], fov: Float) {
+        let starToSelect: Star?
+        if stars.contains(where: { $0.id == selectedStar?.id }) {
+            starToSelect = stars.first { $0.id != selectedStar?.id }
+        } else if let firstCandidate = stars.first, selectedStar == nil {
+            starToSelect = firstCandidate
+        } else {
+            starToSelect = nil
+        }
+        updateSelectedStar(starToSelect)
     }
     
     private func showStarInfoAlert(for star: Star) {

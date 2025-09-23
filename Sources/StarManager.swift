@@ -313,11 +313,11 @@ public class StarManager: StarManaging, @unchecked Sendable {
     }
     
     /// Find the closest star to a given cartesian coordinate
-    public func closestStar(
-        to coordinate: SIMD3<Double>,
+    public func closeStars(
+        around coordinate: SIMD3<Double>,
+        maximumAngularDistance angularDistance: Double,
         maximumMagnitude magCutoff: Double? = nil,
-        maximumAngularDistance angularDistance: Double? = nil
-    ) -> Star? {
+    ) -> [Star] {
         // Convert cartesian coordinate to latitude/longitude
         let latLngDeg = cartesianToLatLon(coordinate)
         
@@ -346,7 +346,7 @@ public class StarManager: StarManaging, @unchecked Sendable {
         let h3_1_string = h3IndexToString(h3_1_index)
         let h3_2_string = h3IndexToString(h3_2_index)
         
-        var closestStar: Star?
+        var closeStars: [Star] = []
         var minimumDistance = Double.infinity
         
         // Helper function to calculate distance and find closest star
@@ -356,17 +356,13 @@ public class StarManager: StarManaging, @unchecked Sendable {
                 for row in rows {
                     let star = createStar(from: row)
                     let distance = simd_length(normalize(coordinate) - normalize(star.coordinate))
-                    // Check angular distance constraint if provided
-                    if let angularDistance = angularDistance {
-                        let actualAngularDistance = 2 * asin(distance / 2)
-                        if actualAngularDistance > angularDistance {
-                            continue
-                        }
+                    let actualAngularDistance = 2 * asin(distance / 2)
+                    if actualAngularDistance > angularDistance {
+                        continue
                     }
                     
                     if distance < minimumDistance {
-                        minimumDistance = distance
-                        closestStar = star
+                        closeStars.append(star)
                     }
                 }
             } catch {
@@ -410,7 +406,7 @@ public class StarManager: StarManaging, @unchecked Sendable {
         }
         checkStarsFromQuery(h3_2_query)
 
-        return closestStar
+        return closeStars
     }
     
     // MARK: - Private Helper Functions

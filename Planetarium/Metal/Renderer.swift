@@ -11,7 +11,7 @@ import StarryNight
 
 // Protocol for handling star selection
 protocol StarTapDelegate: AnyObject {
-    func didSelectStar(_ star: Star?)
+    func didSelectStars(_ stars: [Star], fov: Float)
 }
 
 #if os(macOS) || targetEnvironment(simulator)
@@ -266,36 +266,32 @@ extension Renderer: CameraDelegate {
         
         // Determine maximum magnitude cutoff based on current FOV and resolution levels shown
         let fov = camera.fieldOfView
-        let maximumMagnitude: Double?
-        if fov >= fovThresholdDegrees(forRes: 0) {
-            // Only resolution 0 (brightest stars) shown
-            maximumMagnitude = 6.1
-        } else if fov >= fovThresholdDegrees(forRes: 1) {
-            // Resolution 0 and 1 shown
-            maximumMagnitude = 8.1
-        } else {
-            // All resolutions shown
-            maximumMagnitude = nil
-        }
-        
+
+        let maximumMagnitude: Double? = {
+            if fov >= fovThresholdDegrees(forRes: 0) {
+                // Only resolution 0 (brightest stars) shown
+                return 6.1
+            } else if fov >= fovThresholdDegrees(forRes: 1) {
+                // Resolution 0 and 1 shown
+                return 8.1
+            } else {
+                // All resolutions shown
+                return nil
+            }
+        }()
+
         // Calculate max angular distance as 1/50 of FOV in radians
         let maxAngularDistance = Double(fov * Float.pi / 180.0) / 50.0
-        
+
         // Find the closest star
-        if let closestStar = starManager.closestStar(
-            to: coordinate,
+        let closeStars = starManager.closeStars(
+            around: coordinate,
+            maximumAngularDistance: maxAngularDistance,
             maximumMagnitude: maximumMagnitude,
-            maximumAngularDistance: maxAngularDistance
-        ) {
-            // Load detailed star information
-            let starWithInfo = starManager.starWithInfo(id: closestStar.id) ?? closestStar
-            
-            // Notify delegate (MetalViewController) about the selected star
-            starTapDelegate?.didSelectStar(starWithInfo)
-        } else {
-            // No star found, notify delegate about deselection
-            starTapDelegate?.didSelectStar(nil)
-        }
+        )
+
+        // Notify delegate (MetalViewController) about the selected star
+        starTapDelegate?.didSelectStars(closeStars, fov: fov)
     }
 }
 
