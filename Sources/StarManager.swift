@@ -272,9 +272,11 @@ public class StarManager: StarManaging, @unchecked Sendable {
     }
     
     /// Get stars within a specific H3 cell
-    public func stars(inH3Cell h3Index: String, level: Int, maximumMagnitude magCutoff: Double? = nil) -> [Star] {
+    public func stars(inH3Cell h3Index: H3Index, maximumMagnitude magCutoff: Double? = nil) -> [Star] {
+        let level = getResolution(h3Index)
         let table: Table
         let h3Column: SQLite.Expression<String>
+        let h3IndexString = h3IndexToString(h3Index)
         
         switch level {
         case 0:
@@ -292,7 +294,7 @@ public class StarManager: StarManaging, @unchecked Sendable {
         }
         
         var query = table
-            .filter(h3Column == h3Index)
+            .filter(h3Column == h3IndexString)
             .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
         
         if let magCutoff = magCutoff {
@@ -305,111 +307,9 @@ public class StarManager: StarManaging, @unchecked Sendable {
             let rows = try db.prepare(query)
             return rows.map { createStar(from: $0) }
         } catch {
-            print("Error fetching stars in H3 cell \(h3Index): \(error)")
+            print("Error fetching stars in H3 cell \(h3IndexString): \(error)")
             return []
         }
-    }
-    
-    /// Get stars within a rectangular viewport defined by four lat/lon vertices
-    /// Always includes all brightest 300 stars plus stars from appropriate H3 cells
-    public func stars(inViewport vertices: [(latitude: Double, longitude: Double)], maximumMagnitude magCutoff: Double? = nil) -> [Star] {
-        guard vertices.count == 4 else {
-            print("Error: Viewport must have exactly 4 vertices")
-            return []
-        }
-        
-        // Start with brightest 300 stars (always included)
-        var allStars = Set<Int>() // Use Set to avoid duplicates by star ID
-        let brightestStars = brightestStars()
-        for star in brightestStars {
-            if let magCutoff = magCutoff {
-                if star.magnitude < magCutoff {
-                    allStars.insert(star.id)
-                }
-            } else {
-                allStars.insert(star.id)
-            }
-        }
-        
-        // Convert lat/lon vertices to GeoCoord for H3 (convert degrees to radians)
-        let geoCoords = vertices.map { vertex in
-            GeoCoord(lat: vertex.latitude * .pi / 180.0, lon: vertex.longitude * .pi / 180.0)
-        }
-        
-        // Create polygon for H3 polyfill
-        let geofence = Geofence(numVerts: Int32(geoCoords.count), verts: UnsafeMutablePointer<GeoCoord>.allocate(capacity: geoCoords.count))
-        for (index, coord) in geoCoords.enumerated() {
-            geofence.verts[index] = coord
-        }
-        defer {
-            geofence.verts.deallocate()
-        }
-        
-        var polygon = GeoPolygon(geofence: geofence, numHoles: 0, holes: nil)
-        
-        // Determine the appropriate H3 level by checking if all vertices fall in the same cell
-        var useLevel = 0
-        
-        for testLevel in 0...2 {
-            let h3Indices = geoCoords.map { coord in
-                withUnsafePointer(to: coord) { coordPtr in
-                    geoToH3(coordPtr, Int32(testLevel))
-                }
-            }
-            let uniqueIndices = Set(h3Indices)
-            
-            if uniqueIndices.count == 1 {
-                // All vertices in same cell, can use higher resolution
-                useLevel = testLevel + 1
-                if useLevel > 2 {
-                    useLevel = 2 // Cap at level 2
-                    break
-                }
-            } else {
-                // Use current level
-                useLevel = testLevel
-                break
-            }
-        }
-        
-        // Get H3 cells covering the polygon at the determined level
-        let maxCells = maxPolyfillSize(&polygon, Int32(useLevel))
-        let h3Cells = UnsafeMutablePointer<H3Index>.allocate(capacity: Int(maxCells))
-        defer {
-            h3Cells.deallocate()
-        }
-        
-        polyfill(&polygon, Int32(useLevel), h3Cells)
-        
-        // Query stars from each H3 cell
-        for i in 0..<Int(maxCells) {
-            let h3Index = h3Cells[i]
-            if h3Index != 0 { // Valid H3 index
-                // Convert H3Index to string
-                let bufferSize = 17 // H3 string representation needs max 16 chars + null terminator
-                let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: bufferSize)
-                defer { buffer.deallocate() }
-                
-                h3ToString(h3Index, buffer, bufferSize)
-                
-                if let h3IndexString = String(cString: buffer, encoding: .utf8) {
-                    let cellStars = stars(inH3Cell: h3IndexString, level: useLevel, maximumMagnitude: magCutoff)
-                    for star in cellStars {
-                        allStars.insert(star.id)
-                    }
-                }
-            }
-        }
-        
-        // Convert star IDs back to Star objects
-        var result: [Star] = []
-        for starId in allStars {
-            if let star = star(withId: starId) {
-                result.append(star)
-            }
-        }
-        
-        return result
     }
     
     /// Find the closest star to a given cartesian coordinate
@@ -419,20 +319,26 @@ public class StarManager: StarManaging, @unchecked Sendable {
         maximumAngularDistance angularDistance: Double? = nil
     ) -> Star? {
         // Convert cartesian coordinate to latitude/longitude
-        let (latitude, longitude) = cartesianToLatLon(coordinate)
+        let latLngDeg = cartesianToLatLon(coordinate)
         
-        // Convert to GeoCoord for H3
-        let geoCoord = GeoCoord(lat: latitude * .pi / 180.0, lon: longitude * .pi / 180.0)
-        
+        // Convert to LatLng in radians for H3
+        let geoCoord = LatLng(lat: latLngDeg.lat * .pi / 180.0, lng: latLngDeg.lng * .pi / 180.0)
+
         // Get H3 indices for different resolution levels
         let h3_0_index = withUnsafePointer(to: geoCoord) { coordPtr in
-            geoToH3(coordPtr, 0)
+            var out: H3Index = 0
+            _ = latLngToCell(coordPtr, 0, &out)
+            return out
         }
         let h3_1_index = withUnsafePointer(to: geoCoord) { coordPtr in
-            geoToH3(coordPtr, 1)
+            var out: H3Index = 0
+            _ = latLngToCell(coordPtr, 1, &out)
+            return out
         }
         let h3_2_index = withUnsafePointer(to: geoCoord) { coordPtr in
-            geoToH3(coordPtr, 2)
+            var out: H3Index = 0
+            _ = latLngToCell(coordPtr, 2, &out)
+            return out
         }
         
         // Convert H3 indices to strings for database queries
@@ -468,59 +374,53 @@ public class StarManager: StarManaging, @unchecked Sendable {
             }
         }
         
-        if let h3_0_string = h3_0_string {
-            // 1. Start with brightest 300 stars
-            var query = Tables.starsBrightest300
-                .filter(Tables.h3_0 == h3_0_string)
-                .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
-            if let magCutoff = magCutoff {
-                query = query.filter(Tables.mag < magCutoff)
-            }
-            checkStarsFromQuery(query)
-            
-            // 2. Check H3 level 0 with H3 filter
-            var h3_0_query = Tables.starsH3_0
-                .filter(Tables.h3_0 == h3_0_string)
-                .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
-            if let magCutoff = magCutoff {
-                h3_0_query = h3_0_query.filter(Tables.mag < magCutoff)
-            }
-            checkStarsFromQuery(h3_0_query)
+        // 1. Start with brightest 300 stars
+        var query = Tables.starsBrightest300
+            .filter(Tables.h3_0 == h3_0_string)
+            .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
+        if let magCutoff = magCutoff {
+            query = query.filter(Tables.mag < magCutoff)
         }
-        
-        // 3. Check H3 level 1 with H3 filter
-        if let h3_1_string = h3_1_string {
-            var h3_1_query = Tables.starsH3_1
-                .filter(Tables.h3_1 == h3_1_string)
-                .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
-            if let magCutoff = magCutoff {
-                h3_1_query = h3_1_query.filter(Tables.mag < magCutoff)
-            }
-            checkStarsFromQuery(h3_1_query)
+        checkStarsFromQuery(query)
+
+        // 2. Check H3 level 0 with H3 filter
+        var h3_0_query = Tables.starsH3_0
+            .filter(Tables.h3_0 == h3_0_string)
+            .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
+        if let magCutoff = magCutoff {
+            h3_0_query = h3_0_query.filter(Tables.mag < magCutoff)
         }
+        checkStarsFromQuery(h3_0_query)
         
-        // 4. Check H3 level 2 with H3 filter
-        if let h3_2_string = h3_2_string {
-            var h3_2_query = Tables.starsH3_2
-                .filter(Tables.h3_2 == h3_2_string)
-                .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
-            if let magCutoff = magCutoff {
-                h3_2_query = h3_2_query.filter(Tables.mag < magCutoff)
-            }
-            checkStarsFromQuery(h3_2_query)
+        // 2. Check H3 level 1 with H3 filter
+        var h3_1_query = Tables.starsH3_1
+            .filter(Tables.h3_1 == h3_1_string)
+            .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
+        if let magCutoff = magCutoff {
+            h3_1_query = h3_1_query.filter(Tables.mag < magCutoff)
         }
-        
+        checkStarsFromQuery(h3_1_query)
+
+        // 3. Check H3 level 2 with H3 filter
+        var h3_2_query = Tables.starsH3_2
+            .filter(Tables.h3_2 == h3_2_string)
+            .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
+        if let magCutoff = magCutoff {
+            h3_2_query = h3_2_query.filter(Tables.mag < magCutoff)
+        }
+        checkStarsFromQuery(h3_2_query)
+
         return closestStar
     }
     
     // MARK: - Private Helper Functions
     
     /// Convert cartesian coordinates to latitude/longitude
-    private func cartesianToLatLon(_ coordinate: SIMD3<Double>) -> (latitude: Double, longitude: Double) {
+    private func cartesianToLatLon(_ coordinate: SIMD3<Double>) -> LatLng {
         // Normalize the vector (in case it's not already unit length)
         let magnitude = sqrt(coordinate.x * coordinate.x + coordinate.y * coordinate.y + coordinate.z * coordinate.z)
         guard magnitude > 0 else {
-            return (0, 0)
+            return LatLng(lat: 0, lng: 0)
         }
         
         let x_norm = coordinate.x / magnitude
@@ -534,20 +434,18 @@ public class StarManager: StarManaging, @unchecked Sendable {
         // Longitude (right ascension): atan2(y, x)
         let longitude = atan2(y_norm, x_norm) * 180.0 / .pi
         
-        return (latitude, longitude)
+        return LatLng(lat: latitude, lng: longitude)
     }
     
     /// Convert H3 index to string
-    private func h3IndexToString(_ h3Index: H3Index) -> String? {
-        guard h3Index != 0 else { return nil }
-        
+    private func h3IndexToString(_ h3Index: H3Index) -> String {        
         let bufferSize = 17 // H3 string representation needs max 16 chars + null terminator
         let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: bufferSize)
         defer { buffer.deallocate() }
         
         h3ToString(h3Index, buffer, bufferSize)
         
-        return String(cString: buffer, encoding: .utf8)
+        return String(cString: buffer, encoding: .utf8)!
     }
     
     /// Search for stars by name or catalog identifier

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Ch3
 
 /// Protocol defining the star management interface
 public protocol StarManaging: Sendable {
@@ -20,12 +21,11 @@ public protocol StarManaging: Sendable {
     func stars(forH3Level level: Int, maximumMagnitude magCutoff: Double?) -> [Star]
     
     /// Get stars within a specific H3 cell
-    func stars(inH3Cell h3Index: String, level: Int, maximumMagnitude magCutoff: Double?) -> [Star]
-    
-    /// Get stars within a rectangular viewport defined by four lat/lon vertices
-    /// Always includes all brightest 300 stars plus stars from appropriate H3 cells
-    func stars(inViewport vertices: [(latitude: Double, longitude: Double)], maximumMagnitude magCutoff: Double?) -> [Star]
-    
+    /// Stars are available for H3 resolutions 0-2. 
+    /// Note: this method does not contain brightest stars, which are accessible via `brightestStars()` or `stars(maximumMagnitude:)`.
+    /// In order to adaptively render stars, display brightest stars always, followed by stars found in H3 cells at increasing resolutions as the user zooms in.
+    func stars(inH3Cell h3Index: H3Index, maximumMagnitude magCutoff: Double?) -> [Star]
+
     /// Find the closest star to a given cartesian coordinate
     func closestStar(to coordinate: SIMD3<Double>, maximumMagnitude magCutoff: Double?, maximumAngularDistance angularDistance: Double?) -> Star?
     
