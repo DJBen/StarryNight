@@ -9,7 +9,6 @@ final class H3GridRenderer {
     private let device: MTLDevice
     private let pipelineState: MTLRenderPipelineState
     private let depthState: MTLDepthStencilState
-    private var previousLatLngVertices: [LatLng]? = nil
 
     struct LineInstance {
         var p0: simd_float3
@@ -72,21 +71,24 @@ final class H3GridRenderer {
         // World space to lat/lng in radians
         let latLngVertices = worldCorners.map { worldCoord -> LatLng in
             let eci = starToWorldTransform.inverse * worldCoord
-            let lat = asin(eci.z)
-            let lon = atan2(eci.y, eci.x)
-            return LatLng(lat: Double(lat) * 180.0 / .pi, lng: Double(lon) * 180.0 / .pi)
-        }
-
-        if previousLatLngVertices != latLngVertices {
-            print("LatLng vertices: \(latLngVertices)")
-            previousLatLngVertices = latLngVertices
+            let lat = Double(asin(eci.z))
+            let lng = Double(atan2(eci.y, eci.x))
+            return LatLng(lat: lat, lng: lng)
         }
 
         var allLines: [LineInstance] = []
         for res in resolutionsToShow {
             let cells = H3Utils.h3Cells(inViewport: latLngVertices, resolution: res)
-            let lines = gridLines(forCells: cells, radius: 10.0)
-            allLines.append(contentsOf: lines.map { LineInstance(p0: $0.p0, p1: $0.p1, level: UInt32(res)) })
+            let lines = gridLines(forCells: cells)
+            allLines.append(
+                contentsOf: lines.map { line in
+                    LineInstance(
+                        p0: starToWorldTransform * latLngToCelestialCoord(line.p0),
+                        p1: starToWorldTransform * latLngToCelestialCoord(line.p1),
+                        level: UInt32(res)
+                    )
+                }
+            )
         }
 
         guard !allLines.isEmpty else { return }

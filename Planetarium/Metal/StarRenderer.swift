@@ -4,18 +4,6 @@ import MetalKit
 import simd
 import StarryNight
 
-// The coordinate system for rendering stars is different from the one used for H3 grids.
-// Star data is in a right-handed system where Y is up.
-// The renderer uses a right-handed system where Z is up.
-// Combine those: swizzle: (x, y, z) -> (x, z, -y), rotation: 90 degrees around Y-axis
-let starToWorldTransform = float3x3(
-    SIMD3<Float>(0, 0, -1),
-    SIMD3<Float>(-1, 0, 0),
-    SIMD3<Float>(0, 1, 0)
-)
-
-// Dynamic exposure and f-number are now computed in the shader based on uniforms.fov
-
 /// Renders brightest stars as instanced billboards. Owns its own Metal resources.
 final class StarRenderer {
     private let device: MTLDevice
@@ -31,7 +19,6 @@ final class StarRenderer {
     private var brightestStarInstances: [StarInstance] = []
     private var h3StarCache: [H3Index: [StarInstance]] = [:]
     private var activeH3CellsByRes: [Int: Set<H3Index>] = [0: [], 1: [], 2: []]
-    // No need to track previous FOV for instance rebuilding; instances are FOV-independent now
 
     init(device: MTLDevice, view: MTKView, starManager: any StarManaging) {
         self.device = device
@@ -80,9 +67,9 @@ final class StarRenderer {
         }
         let latLngVertices = worldCorners.map { worldCoord -> LatLng in
             let eci = starToWorldTransform.inverse * worldCoord
-            let lat = asin(eci.z)
-            let lon = atan2(eci.y, eci.x)
-            return LatLng(lat: Double(lat) * 180.0 / .pi, lng: Double(lon) * 180.0 / .pi)
+            let lat = Double(asin(eci.z))
+            let lng = Double(atan2(eci.y, eci.x))
+            return LatLng(lat: lat, lng: lng)
         }
 
         var starInstanceBufferNeedsChange = false
