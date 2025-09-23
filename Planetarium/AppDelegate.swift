@@ -28,12 +28,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let metalNavigationController = UINavigationController(rootViewController: metalViewController)
         metalNavigationController.tabBarItem = UITabBarItem(title: "Metal", image: UIImage(systemName: "move.3d"), tag: 0)
 
-        // Create tab bar controller
-        let tabBarController = UITabBarController()
-        tabBarController.viewControllers = [metalNavigationController]
-
         // Set root view controller
-        window?.rootViewController = tabBarController
+        window?.rootViewController = metalNavigationController
         
         // Make window visible
         window?.makeKeyAndVisible()

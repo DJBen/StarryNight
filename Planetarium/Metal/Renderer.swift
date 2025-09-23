@@ -9,6 +9,11 @@ import MetalKit
 import simd
 import StarryNight
 
+// Protocol for handling star selection
+protocol StarTapDelegate: AnyObject {
+    func didSelectStar(_ star: Star?)
+}
+
 #if os(macOS) || targetEnvironment(simulator)
 let requiredConstantBufferAlignment = 256
 #else
@@ -32,6 +37,9 @@ class Renderer: NSObject, MTKViewDelegate {
     let starManager: any StarManaging
     public let device: MTLDevice
     let commandQueue: MTLCommandQueue
+    
+    // Delegate for star tap handling
+    weak var starTapDelegate: StarTapDelegate?
 
     var depthTexture: MTLTexture
     var stencilTexture: MTLTexture
@@ -246,6 +254,48 @@ extension Renderer: CameraDelegate {
     func camera(_ camera: Camera, didUpdateFOV fov: Float) {
         // Optionally handle FOV changes for UI updates or other purposes
         print("Camera FOV updated to: \(fov)°")
+    }
+    
+    func camera(_ camera: Camera, didTapAt location: CGPoint, in viewSize: CGSize) {
+        // Convert screen coordinates to world ray direction
+        let worldRay = camera.screenToWorldRay(screenPoint: location, viewSize: viewSize)
+        
+        // Transform from world coordinates to star coordinate system
+        let starCoordinate = starToWorldTransform.inverse * worldRay
+        let coordinate = SIMD3<Double>(Double(starCoordinate.x), Double(starCoordinate.y), Double(starCoordinate.z))
+        
+        // Determine maximum magnitude cutoff based on current FOV and resolution levels shown
+        let fov = camera.fieldOfView
+        let maximumMagnitude: Double?
+        if fov >= fovThresholdDegrees(forRes: 0) {
+            // Only resolution 0 (brightest stars) shown
+            maximumMagnitude = 6.1
+        } else if fov >= fovThresholdDegrees(forRes: 1) {
+            // Resolution 0 and 1 shown
+            maximumMagnitude = 8.1
+        } else {
+            // All resolutions shown
+            maximumMagnitude = nil
+        }
+        
+        // Calculate max angular distance as 1/50 of FOV in radians
+        let maxAngularDistance = Double(fov * Float.pi / 180.0) / 50.0
+        
+        // Find the closest star
+        if let closestStar = starManager.closestStar(
+            to: coordinate,
+            maximumMagnitude: maximumMagnitude,
+            maximumAngularDistance: maxAngularDistance
+        ) {
+            // Load detailed star information
+            let starWithInfo = starManager.starWithInfo(id: closestStar.id) ?? closestStar
+            
+            // Notify delegate (MetalViewController) about the selected star
+            starTapDelegate?.didSelectStar(starWithInfo)
+        } else {
+            // No star found, notify delegate about deselection
+            starTapDelegate?.didSelectStar(nil)
+        }
     }
 }
 

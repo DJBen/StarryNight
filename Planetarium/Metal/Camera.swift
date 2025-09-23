@@ -15,6 +15,7 @@ protocol CameraDelegate: AnyObject {
     func camera(_ camera: Camera, didUpdateViewMatrix viewMatrix: matrix_float4x4)
     func camera(_ camera: Camera, didUpdateProjectionMatrix projectionMatrix: matrix_float4x4)
     func camera(_ camera: Camera, didUpdateFOV fov: Float)
+    func camera(_ camera: Camera, didTapAt location: CGPoint, in viewSize: CGSize)
 }
 
 class Camera {
@@ -161,6 +162,12 @@ class Camera {
     }
     
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
+        // Notify delegate about tap location for star detection
+        if let view = gesture.view, !isMomentumActive {
+            let tapLocation = gesture.location(in: view)
+            delegate?.camera(self, didTapAt: tapLocation, in: view.bounds.size)
+        }
+
         // Stop momentum animation if it's running
         stopMomentum()
     }

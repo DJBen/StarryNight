@@ -2,7 +2,7 @@ import Ch3
 import simd
 
 // The coordinate system for rendering stars is different from the one used for H3 grids.
-// Star data is in a right-handed system where Y is up.
+// Star data has the directions such that x is towards RA 0, Dec 0, y towards RA 6 hr., Dec 0, and z towards Dec 90 degrees.
 // The renderer uses a right-handed system where Z is up.
 // Combine those: swizzle: (x, y, z) -> (x, z, -y), rotation: 90 degrees around Y-axis
 let starToWorldTransform = float3x3(
