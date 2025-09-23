@@ -2,6 +2,12 @@ import Foundation
 import simd
 import Ch3
 
+extension LatLng: @retroactive Equatable {
+    public static func == (lhs: LatLng, rhs: LatLng) -> Bool {
+        lhs.lat == rhs.lat && lhs.lng == rhs.lng
+    }
+}
+
 public enum H3Utils {
     
     /// Get H3 cells for a given viewport and resolution.
@@ -13,7 +19,7 @@ public enum H3Utils {
     ///   - resolution: The desired H3 resolution (0-15).
     /// - Returns: An array of H3Index values covering the specified viewport.
     public static func h3Cells(
-        inViewport vertices: [(latitude: Double, longitude: Double)], 
+        inViewport vertices: [LatLng], 
         resolution: Int32
     ) -> [H3Index] {
         guard vertices.count == 4 else {
@@ -22,7 +28,7 @@ public enum H3Utils {
         }
         
         let geoCoords = vertices.map { vertex in
-            LatLng(lat: vertex.latitude * .pi / 180.0, lng: vertex.longitude * .pi / 180.0)
+            LatLng(lat: vertex.lat * .pi / 180.0, lng: vertex.lng * .pi / 180.0)
         }
         
         // Check for pole containment

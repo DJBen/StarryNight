@@ -29,6 +29,7 @@ enum RendererError: Error {
 
 class Renderer: NSObject, MTKViewDelegate {
 
+    let starManager: any StarManaging
     public let device: MTLDevice
     let commandQueue: MTLCommandQueue
 
@@ -62,8 +63,13 @@ class Renderer: NSObject, MTKViewDelegate {
     // Star animation time
     // Subrenderer owns resources; we keep just time
 
-    init?(metalKitView: MTKView) {
+    init?(
+        metalKitView: MTKView,
+        starManager: any StarManaging
+    ) {
+        self.starManager = starManager
         self.device = metalKitView.device!
+
         guard let queue = self.device.makeCommandQueue() else { return nil }
         self.commandQueue = queue
         metalKitView.colorPixelFormat = MTLPixelFormat.bgra8Unorm_srgb
@@ -78,7 +84,7 @@ class Renderer: NSObject, MTKViewDelegate {
 
         // Initialize sub-renderers
         self.skyboxRenderer = SkyboxRenderer(device: self.device, view: metalKitView)
-        self.starRenderer = StarRenderer(device: self.device, view: metalKitView)
+        self.starRenderer = StarRenderer(device: self.device, view: metalKitView, starManager: starManager)
         self.h3GridRenderer = H3GridRenderer(device: self.device, view: metalKitView)
 
 #if os(macOS) || targetEnvironment(simulator)

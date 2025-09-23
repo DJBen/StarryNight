@@ -319,10 +319,10 @@ public class StarManager: StarManaging, @unchecked Sendable {
         maximumAngularDistance angularDistance: Double? = nil
     ) -> Star? {
         // Convert cartesian coordinate to latitude/longitude
-        let (latitude, longitude) = cartesianToLatLon(coordinate)
+        let latLngDeg = cartesianToLatLon(coordinate)
         
-        // Convert to LatLng for H3
-        let geoCoord = LatLng(lat: latitude * .pi / 180.0, lng: longitude * .pi / 180.0)
+        // Convert to LatLng in radians for H3
+        let geoCoord = LatLng(lat: latLngDeg.lat * .pi / 180.0, lng: latLngDeg.lng * .pi / 180.0)
 
         // Get H3 indices for different resolution levels
         let h3_0_index = withUnsafePointer(to: geoCoord) { coordPtr in
@@ -416,11 +416,11 @@ public class StarManager: StarManaging, @unchecked Sendable {
     // MARK: - Private Helper Functions
     
     /// Convert cartesian coordinates to latitude/longitude
-    private func cartesianToLatLon(_ coordinate: SIMD3<Double>) -> (latitude: Double, longitude: Double) {
+    private func cartesianToLatLon(_ coordinate: SIMD3<Double>) -> LatLng {
         // Normalize the vector (in case it's not already unit length)
         let magnitude = sqrt(coordinate.x * coordinate.x + coordinate.y * coordinate.y + coordinate.z * coordinate.z)
         guard magnitude > 0 else {
-            return (0, 0)
+            return LatLng(lat: 0, lng: 0)
         }
         
         let x_norm = coordinate.x / magnitude
@@ -434,7 +434,7 @@ public class StarManager: StarManaging, @unchecked Sendable {
         // Longitude (right ascension): atan2(y, x)
         let longitude = atan2(y_norm, x_norm) * 180.0 / .pi
         
-        return (latitude, longitude)
+        return LatLng(lat: latitude, lng: longitude)
     }
     
     /// Convert H3 index to string

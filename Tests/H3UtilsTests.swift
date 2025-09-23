@@ -5,18 +5,18 @@ import simd
 
 class H3UtilsTests: XCTestCase {
 
-    private func isPointInPolygon(point: (latitude: Double, longitude: Double), polygon: [(latitude: Double, longitude: Double)]) -> Bool {
+    private func isPointInPolygon(point: LatLng, polygon: [LatLng]) -> Bool {
         guard polygon.count >= 3 else { return false }
 
         var angleSum: Double = 0.0
-        let pointRad = (lat: point.latitude * .pi / 180.0, lon: point.longitude * .pi / 180.0)
+        let pointRad = (lat: point.lat * .pi / 180.0, lon: point.lng * .pi / 180.0)
 
         for i in 0..<polygon.count {
             let p1 = polygon[i]
             let p2 = polygon[(i + 1) % polygon.count]
 
-            let p1Rad = (lat: p1.latitude * .pi / 180.0, lon: p1.longitude * .pi / 180.0)
-            let p2Rad = (lat: p2.latitude * .pi / 180.0, lon: p2.longitude * .pi / 180.0)
+            let p1Rad = (lat: p1.lat * .pi / 180.0, lon: p1.lng * .pi / 180.0)
+            let p2Rad = (lat: p2.lat * .pi / 180.0, lon: p2.lng * .pi / 180.0)
 
             // Calculate bearings from the test point to the vertices of the edge
             let bearing1 = atan2(sin(p1Rad.lon - pointRad.lon) * cos(p1Rad.lat),
@@ -41,11 +41,11 @@ class H3UtilsTests: XCTestCase {
     }
 
     func testStandardViewport() {
-        let viewport: [(latitude: Double, longitude: Double)] = [
-            (latitude: 40.7128, longitude: -74.0060), // New York City
-            (latitude: 34.0522, longitude: -118.2437), // Los Angeles
-            (latitude: 25.7617, longitude: -80.1918),  // Miami
-            (latitude: 41.8781, longitude: -87.6298)   // Chicago
+        let viewport: [LatLng] = [
+            LatLng(lat: 40.7128, lng: -74.0060), // New York City
+            LatLng(lat: 34.0522, lng: -118.2437), // Los Angeles
+            LatLng(lat: 25.7617, lng: -80.1918),  // Miami
+            LatLng(lat: 41.8781, lng: -87.6298)   // Chicago
         ]
         
         let cells = H3Utils.h3Cells(inViewport: viewport, resolution: 2)
@@ -57,11 +57,11 @@ class H3UtilsTests: XCTestCase {
     }
 
     func testNorthPoleViewport() {
-        let viewport: [(latitude: Double, longitude: Double)] = [
-            (latitude: 80.0, longitude: 0.0),
-            (latitude: 80.0, longitude: 90.0),
-            (latitude: 80.0, longitude: 180.0),
-            (latitude: 80.0, longitude: -90.0)
+        let viewport: [LatLng] = [
+            LatLng(lat: 80.0, lng: 0.0),
+            LatLng(lat: 80.0, lng: 90.0),
+            LatLng(lat: 80.0, lng: 180.0),
+            LatLng(lat: 80.0, lng: -90.0)
         ]
         
         let cells = H3Utils.h3Cells(inViewport: viewport, resolution: 1)
@@ -78,17 +78,17 @@ class H3UtilsTests: XCTestCase {
         for cell in cells {
             var centerCoord = LatLng()
             cellToLatLng(cell, &centerCoord)
-            let center = (latitude: centerCoord.lat * 180.0 / .pi, longitude: centerCoord.lng * 180.0 / .pi)
-            XCTAssertTrue(center.latitude >= 75.0, "Cell center latitude (\(center.latitude)) should be within or close to the viewport boundary (>= 80)")
+            let center = LatLng(lat: centerCoord.lat * 180.0 / .pi, lng: centerCoord.lng * 180.0 / .pi)
+            XCTAssertTrue(center.lat >= 75.0, "Cell center latitude (\(center.lat)) should be within or close to the viewport boundary (>= 80)")
         }
     }
 
     func testSouthPoleViewport() {
-        let viewport: [(latitude: Double, longitude: Double)] = [
-            (latitude: -80.0, longitude: 0.0),
-            (latitude: -80.0, longitude: 90.0),
-            (latitude: -80.0, longitude: 180.0),
-            (latitude: -80.0, longitude: -90.0)
+        let viewport: [LatLng] = [
+            LatLng(lat: -80.0, lng: 0.0),
+            LatLng(lat: -80.0, lng: 90.0),
+            LatLng(lat: -80.0, lng: 180.0),
+            LatLng(lat: -80.0, lng: -90.0)
         ]
         
         let cells = H3Utils.h3Cells(inViewport: viewport, resolution: 1)
@@ -105,8 +105,8 @@ class H3UtilsTests: XCTestCase {
         for cell in cells {
             var centerCoord = LatLng()
             cellToLatLng(cell, &centerCoord)
-            let center = (latitude: centerCoord.lat * 180.0 / .pi, longitude: centerCoord.lng * 180.0 / .pi)
-            XCTAssertTrue(center.latitude <= -75.0, "Cell center latitude (\(center.latitude)) should be within or close to the viewport boundary (<= -80)")
+            let center = LatLng(lat: centerCoord.lat * 180.0 / .pi, lng: centerCoord.lng * 180.0 / .pi)
+            XCTAssertTrue(center.lat <= -75.0, "Cell center latitude (\(center.lat)) should be within or close to the viewport boundary (<= -80)")
         }
     }
 }

@@ -8,7 +8,7 @@ import StarryNight
 // Star data is in a right-handed system where Y is up.
 // The renderer uses a right-handed system where Z is up.
 // Combine those: swizzle: (x, y, z) -> (x, z, -y), rotation: 90 degrees around Y-axis
-private let starToWorldTransform = float3x3(
+let starToWorldTransform = float3x3(
     SIMD3<Float>(0, 0, -1),
     SIMD3<Float>(-1, 0, 0),
     SIMD3<Float>(0, 1, 0)
@@ -33,13 +33,9 @@ final class StarRenderer {
     private var activeH3CellsByRes: [Int: Set<H3Index>] = [0: [], 1: [], 2: []]
     // No need to track previous FOV for instance rebuilding; instances are FOV-independent now
 
-    init(device: MTLDevice, view: MTKView) {
+    init(device: MTLDevice, view: MTKView, starManager: any StarManaging) {
         self.device = device
-
-        guard let sm = try? StarManager() else {
-            fatalError("StarManager could not be initialized.")
-        }
-        self.starManager = sm
+        self.starManager = starManager
 
         // Pipeline
         self.pipelineState = try! StarRenderer.createPipeline(device: device, view: view)
@@ -82,11 +78,11 @@ final class StarRenderer {
             let worldPos = invMVP * simd_float4($0, 1.0)
             return simd_normalize(SIMD3<Float>(x: worldPos.x, y: worldPos.y, z: worldPos.z) / worldPos.w)
         }
-        let latLngVertices = worldCorners.map { worldCoord -> (latitude: Double, longitude: Double) in
+        let latLngVertices = worldCorners.map { worldCoord -> LatLng in
             let eci = starToWorldTransform.inverse * worldCoord
             let lat = asin(eci.z)
             let lon = atan2(eci.y, eci.x)
-            return (latitude: Double(lat) * 180.0 / .pi, longitude: Double(lon) * 180.0 / .pi)
+            return LatLng(lat: Double(lat) * 180.0 / .pi, lng: Double(lon) * 180.0 / .pi)
         }
 
         var starInstanceBufferNeedsChange = false

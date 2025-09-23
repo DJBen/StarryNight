@@ -13,13 +13,24 @@ import UIKit
 typealias PlatformViewController = UIViewController
 #endif
 import MetalKit
+import StarryNight
 
 class MetalViewController: PlatformViewController
 {
 
+    private let starManager: StarManaging
     var renderer: Renderer!
     var mtkView: MTKView!
 
+    init(starManager: any StarManaging) {
+        self.starManager = starManager
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -63,7 +74,7 @@ class MetalViewController: PlatformViewController
         mtkView.backgroundColor = UIColor.black
 #endif
 
-        guard let newRenderer = Renderer(metalKitView: mtkView) else {
+        guard let newRenderer = Renderer(metalKitView: mtkView, starManager: starManager) else {
             print("Renderer cannot be initialized")
             return
         }

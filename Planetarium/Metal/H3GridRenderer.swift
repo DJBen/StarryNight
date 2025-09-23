@@ -1,3 +1,4 @@
+import Ch3
 import Metal
 import MetalKit
 import simd
@@ -8,6 +9,7 @@ final class H3GridRenderer {
     private let device: MTLDevice
     private let pipelineState: MTLRenderPipelineState
     private let depthState: MTLDepthStencilState
+    private var previousLatLngVertices: [LatLng]? = nil
 
     struct LineInstance {
         var p0: simd_float3
@@ -66,18 +68,18 @@ final class H3GridRenderer {
             let worldPos = invMVP * simd_float4($0, 1.0)
             return simd_normalize(SIMD3<Float>(x: worldPos.x, y: worldPos.y, z: worldPos.z) / worldPos.w)
         }
-        
+
         // World space to lat/lng in radians
-        let latLngVertices = worldCorners.map { worldCoord -> (latitude: Double, longitude: Double) in
-            // Star-style mapping is (y,z,x). We need to reverse this to get to the original ECEF-style coords.
-            // Original ECEF: x=cos(lat)cos(lon), y=sin(lat), z=cos(lat)sin(lon)
-            // Star mapping:   x'=y, y'=z, z'=x
-            // So, to reverse: y=x', z=y', x=z'
-            let ecef = simd_float3(worldCoord.z, worldCoord.x, worldCoord.y)
-            
-            let lat = asin(ecef.y)
-            let lon = atan2(ecef.z, ecef.x)
-            return (latitude: Double(lat) * 180.0 / .pi, longitude: Double(lon) * 180.0 / .pi)
+        let latLngVertices = worldCorners.map { worldCoord -> LatLng in
+            let eci = starToWorldTransform.inverse * worldCoord
+            let lat = asin(eci.z)
+            let lon = atan2(eci.y, eci.x)
+            return LatLng(lat: Double(lat) * 180.0 / .pi, lng: Double(lon) * 180.0 / .pi)
+        }
+
+        if previousLatLngVertices != latLngVertices {
+            print("LatLng vertices: \(latLngVertices)")
+            previousLatLngVertices = latLngVertices
         }
 
         var allLines: [LineInstance] = []

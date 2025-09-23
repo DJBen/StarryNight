@@ -20,24 +20,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let starManager = try! StarManager()
 
         // Create view controllers
-        let planetariumViewController = PlanetariumViewController(starManager: starManager)
-        planetariumViewController.title = "Planetarium"
-        
-        let settingsViewController = MetalViewController()
-        settingsViewController.view.backgroundColor = .systemBackground
-        settingsViewController.title = "Metal"
-        
+        let metalViewController = MetalViewController(starManager: starManager)
+        metalViewController.view.backgroundColor = .systemBackground
+        metalViewController.title = "Metal"
+
         // Wrap view controllers in navigation controllers
-        let planetariumNavController = UINavigationController(rootViewController: planetariumViewController)
-        planetariumNavController.tabBarItem = UITabBarItem(title: "Planetarium", image: UIImage(systemName: "star.fill"), tag: 0)
-        
-        let settingsNavController = UINavigationController(rootViewController: settingsViewController)
-        settingsNavController.tabBarItem = UITabBarItem(title: "Metal", image: UIImage(systemName: "move.3d"), tag: 1)
-        
+        let metalNavigationController = UINavigationController(rootViewController: metalViewController)
+        metalNavigationController.tabBarItem = UITabBarItem(title: "Metal", image: UIImage(systemName: "move.3d"), tag: 0)
+
         // Create tab bar controller
         let tabBarController = UITabBarController()
-        tabBarController.viewControllers = [planetariumNavController, settingsNavController]
-        
+        tabBarController.viewControllers = [metalNavigationController]
+
         // Set root view controller
         window?.rootViewController = tabBarController
         
