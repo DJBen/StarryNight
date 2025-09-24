@@ -155,10 +155,25 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     private func updateSelectedStar(_ star: Star?) {
         let star = star?.withInfo(starManager: starManager)
         selectedStar = star
+        
+        // Update the renderer with the selected star for crosshair display
+        renderer?.setSelectedStar(star)
 
         if let star = star {
             // Show toolbar with star name
-            let displayName = star.info?.displayName ?? "Unknown Star"
+            var displayName: String
+            if let bayerFlamsteedDesignation = star.info?.bayerFlamsteedDesignation, let properName = star.info?.properName {
+                displayName = String(
+                    format: NSLocalizedString(
+                        "%@ (%@)",
+                        comment: "Bayer flamsteed designation plus proper name"
+                    ),
+                    bayerFlamsteedDesignation,
+                    properName
+                )
+            } else {
+                displayName = star.info?.displayName ?? "Unknown star"
+            }
             starNameButton.title = displayName
             starNameButton.isEnabled = true
             starToolbar.isHidden = false
@@ -197,7 +212,7 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         let starToSelect: Star?
         if stars.contains(where: { $0.id == selectedStar?.id }) {
             starToSelect = stars.first { $0.id != selectedStar?.id }
-        } else if let firstCandidate = stars.first, selectedStar == nil {
+        } else if let firstCandidate = stars.first {
             starToSelect = firstCandidate
         } else {
             starToSelect = nil

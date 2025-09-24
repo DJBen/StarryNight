@@ -138,8 +138,7 @@ public struct StarInfo: Hashable, Equatable, Sendable {
     }
     
     public var displayName: String? {
-        let bfDesignation = bayerFlamsteedDesignation
-        return properName ?? bfDesignation ?? gl ?? hrIdString ?? hdIdString ?? hipIdString
+        return properName ?? bayerFlamsteedDesignation ?? gl ?? hrIdString ?? hdIdString ?? hipIdString
     }
     
     /// Parse Constellation enum from the constellation property

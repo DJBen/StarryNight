@@ -48,6 +48,7 @@ class Renderer: NSObject, MTKViewDelegate {
     private let skyboxRenderer: SkyboxRenderer
     private let starRenderer: StarRenderer
     private let h3GridRenderer: H3GridRenderer
+    private let crosshairRenderer: CrosshairRenderer
 
     // Camera system
     public var camera: Camera
@@ -68,8 +69,8 @@ class Renderer: NSObject, MTKViewDelegate {
     // Time accumulator for star breathing animation (seconds)
     private var starTime: Float = 0.0
 
-    // Star animation time
-    // Subrenderer owns resources; we keep just time
+    // Selected star for crosshair display
+    private var selectedStar: Star?
 
     init?(
         metalKitView: MTKView,
@@ -94,6 +95,7 @@ class Renderer: NSObject, MTKViewDelegate {
         self.skyboxRenderer = SkyboxRenderer(device: self.device, view: metalKitView)
         self.starRenderer = StarRenderer(device: self.device, view: metalKitView, starManager: starManager)
         self.h3GridRenderer = H3GridRenderer(device: self.device, view: metalKitView)
+        self.crosshairRenderer = CrosshairRenderer(device: self.device, view: metalKitView)
 
 #if os(macOS) || targetEnvironment(simulator)
         metalKitView.framebufferOnly = false
@@ -151,6 +153,12 @@ class Renderer: NSObject, MTKViewDelegate {
     public var isH3GridVisible: Bool {
         get { h3GridRenderer.isVisible }
         set { h3GridRenderer.isVisible = newValue }
+    }
+    
+    // MARK: - Star selection
+    
+    public func setSelectedStar(_ star: Star?) {
+        selectedStar = star
     }
 
     func draw(in view: MTKView) {
@@ -216,6 +224,14 @@ class Renderer: NSObject, MTKViewDelegate {
                     projectionMatrix: projectionMatrix,
                     viewMatrix: viewMatrix,
                     time: starTime,
+                    fov: camera.fieldOfView
+                )
+                
+                // Draw crosshair for selected star (on top)
+                crosshairRenderer.draw(
+                    renderEncoder: renderEncoder,
+                    projectionMatrix: projectionMatrix,
+                    viewMatrix: viewMatrix,
                     fov: camera.fieldOfView
                 )
 
@@ -306,6 +322,9 @@ extension Renderer: CAMetalDisplayLinkDelegate {
         camera.updateMomentumWithDeltaTime(Float(deltaTime))
         // Advance star animation time
         starTime += Float(deltaTime)
+        
+        // Update crosshair animation
+        crosshairRenderer.updateSelectedStar(selectedStar, deltaTime: Float(deltaTime))
 
         // Render the frame
         renderFrame(with: update)
