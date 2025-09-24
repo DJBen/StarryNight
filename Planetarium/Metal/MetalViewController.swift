@@ -235,6 +235,11 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         // Magnitude
         infoText += String(format: "Magnitude: %.2f\n", star.magnitude)
         
+        // Right Ascension and Declination
+        let raDec = coordinatesToRaDec(star.coordinate)
+        infoText += "RA: \(formatRA(raDec.ra))\n"
+        infoText += "Dec: \(formatDec(raDec.dec))\n"
+        
         // Spectral class
         if let spectralClass = star.spectralClass {
             infoText += "Spectral Class: \(spectralClass)\n"
@@ -290,5 +295,55 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         
         present(alert, animated: true)
         #endif
+    }
+    
+    // MARK: - Coordinate Conversion Helpers
+    
+    private func coordinatesToRaDec(_ coordinate: SIMD3<Double>) -> (ra: Double, dec: Double) {
+        // Normalize the vector (in case it's not already unit length)
+        let magnitude = sqrt(coordinate.x * coordinate.x + coordinate.y * coordinate.y + coordinate.z * coordinate.z)
+        guard magnitude > 0 else {
+            return (ra: 0, dec: 0)
+        }
+        
+        let x_norm = coordinate.x / magnitude
+        let y_norm = coordinate.y / magnitude
+        let z_norm = coordinate.z / magnitude
+        
+        // Convert to spherical coordinates
+        // Declination: arcsin(z)
+        let decRadians = asin(z_norm)
+        let decDegrees = decRadians * 180.0 / .pi
+        
+        // Right Ascension: atan2(y, x), converted to hours (0-24)
+        let raRadians = atan2(y_norm, x_norm)
+        var raHours = raRadians * 12.0 / .pi // Convert radians to hours (24h = 2π radians)
+        
+        // Ensure RA is in range 0-24 hours
+        if raHours < 0 {
+            raHours += 24.0
+        }
+        
+        return (ra: raHours, dec: decDegrees)
+    }
+    
+    private func formatRA(_ raHours: Double) -> String {
+        let hours = Int(raHours)
+        let minutesFloat = (raHours - Double(hours)) * 60.0
+        let minutes = Int(minutesFloat)
+        let seconds = (minutesFloat - Double(minutes)) * 60.0
+        
+        return String(format: "%02dh %02dm %04.1fs", hours, minutes, seconds)
+    }
+    
+    private func formatDec(_ decDegrees: Double) -> String {
+        let sign = decDegrees >= 0 ? "+" : "-"
+        let absDecDegrees = abs(decDegrees)
+        let degrees = Int(absDecDegrees)
+        let minutesFloat = (absDecDegrees - Double(degrees)) * 60.0
+        let minutes = Int(minutesFloat)
+        let seconds = (minutesFloat - Double(minutes)) * 60.0
+        
+        return String(format: "%@%02lld° %02lld' %04.1lf\"", sign, degrees, minutes, seconds)
     }
 }
