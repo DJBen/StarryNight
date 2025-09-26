@@ -20,7 +20,8 @@ typedef NS_ENUM(NSInteger, BufferIndex)
 {
     BufferIndexMeshPositions = 0,
     BufferIndexMeshGenerics  = 1,
-    BufferIndexUniforms      = 2
+    BufferIndexUniforms      = 2,
+    BufferIndexViewportSize  = 3
 };
 
 typedef NS_ENUM(NSInteger, VertexAttribute)
@@ -53,8 +54,6 @@ typedef struct
     uint32_t blendMode;
     float transparency;
     float fov;
-    
-    bool forceColor;
     vector_float4 color;
 } Uniforms;
 

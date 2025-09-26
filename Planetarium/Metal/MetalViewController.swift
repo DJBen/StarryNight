@@ -300,23 +300,14 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     // MARK: - Coordinate Conversion Helpers
     
     private func coordinatesToRaDec(_ coordinate: SIMD3<Double>) -> (ra: Double, dec: Double) {
-        // Normalize the vector (in case it's not already unit length)
-        let magnitude = sqrt(coordinate.x * coordinate.x + coordinate.y * coordinate.y + coordinate.z * coordinate.z)
-        guard magnitude > 0 else {
-            return (ra: 0, dec: 0)
-        }
-        
-        let x_norm = coordinate.x / magnitude
-        let y_norm = coordinate.y / magnitude
-        let z_norm = coordinate.z / magnitude
-        
+        let coord_norm = simd_normalize(coordinate)
         // Convert to spherical coordinates
         // Declination: arcsin(z)
-        let decRadians = asin(z_norm)
+        let decRadians = asin(coord_norm.z)
         let decDegrees = decRadians * 180.0 / .pi
         
         // Right Ascension: atan2(y, x), converted to hours (0-24)
-        let raRadians = atan2(y_norm, x_norm)
+        let raRadians = atan2(coord_norm.y, coord_norm.y)
         var raHours = raRadians * 12.0 / .pi // Convert radians to hours (24h = 2π radians)
         
         // Ensure RA is in range 0-24 hours

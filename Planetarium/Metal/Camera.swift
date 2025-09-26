@@ -18,6 +18,64 @@ protocol CameraDelegate: AnyObject {
     func camera(_ camera: Camera, didTapAt location: CGPoint, in viewSize: CGSize)
 }
 
+/// Animation state for smooth panning to specific coordinates
+private struct PanAnimation {
+    let startRA: Float
+    let startDec: Float
+    let endRA: Float
+    let endDec: Float
+    let deltaRA: Float  // Shortest angular distance considering wrapping
+    let deltaDec: Float
+    let duration: Float
+    var elapsedTime: Float = 0
+    
+    init(from: (ra: Float, dec: Float), to: (ra: Float, dec: Float), duration: Float = 1.5) {
+        self.startRA = from.ra
+        self.startDec = from.dec
+        self.endRA = to.ra
+        self.endDec = to.dec
+        self.duration = duration
+        
+        // Calculate shortest angular distance for RA considering wrapping
+        var deltaRA = to.ra - from.ra
+        if deltaRA > Float.pi {
+            deltaRA -= 2 * Float.pi
+        } else if deltaRA < -Float.pi {
+            deltaRA += 2 * Float.pi
+        }
+        self.deltaRA = deltaRA
+        self.deltaDec = to.dec - from.dec
+    }
+    
+    /// Get interpolated position at current time using smooth easing
+    func getCurrentPosition() -> (ra: Float, dec: Float) {
+        let t = min(elapsedTime / duration, 1.0)
+        
+        // Use smooth easing function (ease-in-out cubic)
+        let easedT = t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2
+        
+        // Linear interpolation with easing
+        let currentRA = startRA + deltaRA * easedT
+        let currentDec = startDec + deltaDec * easedT
+        
+        // Normalize RA to [0, 2π] range
+        var normalizedRA = currentRA
+        while normalizedRA < 0 {
+            normalizedRA += 2 * Float.pi
+        }
+        while normalizedRA >= 2 * Float.pi {
+            normalizedRA -= 2 * Float.pi
+        }
+        
+        return (ra: normalizedRA, dec: currentDec)
+    }
+    
+    /// Check if animation is complete
+    var isComplete: Bool {
+        return elapsedTime >= duration
+    }
+}
+
 class Camera {
     
     // MARK: - Properties
@@ -25,16 +83,19 @@ class Camera {
     weak var delegate: CameraDelegate?
     
     // Camera rotation state (spherical coordinates)
-    private var azimuth: Float = 0      // Horizontal rotation (longitude) -π to π
-    private var altitude: Float = 0     // Vertical rotation (latitude) -π/2 to π/2
+    private var ra: Float = 0      // Horizontal rotation (longitude) 0 to 2π
+    private var dec: Float = 0     // Vertical rotation (latitude) -π/2 to π/2
     
     // Momentum properties for smooth pan animations
-    private var azimuthVelocity: Float = 0
-    private var altitudeVelocity: Float = 0
+    private var raVelocity: Float = 0
+    private var decVelocity: Float = 0
     private var isMomentumActive: Bool = false
     
+    // Pan animation state
+    private var panAnimation: PanAnimation?
+    
     // Field of view properties
-    private var currentFOV: Float = 90.0
+    private(set) var currentFOV: Float = 90.0
     private let minFOV: Float = 5       // Maximum zoom (narrowest view)
     private let maxFOV: Float = 105.0   // Minimum zoom (widest view)
 
@@ -92,29 +153,30 @@ class Camera {
         
         switch gesture.state {
         case .began:
-            // Stop any existing momentum
-            stopMomentum()
+            // Stop any existing animations
+            stopAllAnimations()
             
         case .changed:
-            // Update azimuth (horizontal pan = rotate around Y axis)
-            azimuth += deltaX
+            // Update ra (horizontal pan = rotate around Y axis)
+            ra += deltaX
             
-            // Keep azimuth in -π to π range for consistency
-            if azimuth > Float.pi {
-                azimuth -= 2 * Float.pi
-            } else if azimuth < -Float.pi {
-                azimuth += 2 * Float.pi
+            // Keep ra in 0 to 2π range for consistency
+            while ra < 0 {
+                ra += 2 * Float.pi
+            }
+            while ra >= 2 * Float.pi {
+                ra -= 2 * Float.pi
             }
             
-            // Update altitude (vertical pan = rotate around X axis)
-            altitude += deltaY
+            // Update dec (vertical pan = rotate around X axis)
+            dec += deltaY
             
-            // Clamp altitude to prevent flipping over poles
-            altitude = max(-Float.pi/2, min(Float.pi/2, altitude))
+            // Clamp dec to prevent flipping over poles
+            dec = max(-Float.pi/2, min(Float.pi/2, dec))
             
             // Calculate velocities from gesture velocity with FOV adjustment
-            azimuthVelocity = -Float(velocity.x) * adjustedSensitivity
-            altitudeVelocity = -Float(velocity.y) * adjustedSensitivity
+            raVelocity = -Float(velocity.x) * adjustedSensitivity
+            decVelocity = -Float(velocity.y) * adjustedSensitivity
             
             // Update view matrix
             updateViewMatrix()
@@ -134,8 +196,8 @@ class Camera {
     @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
         switch gesture.state {
         case .began:
-            // Stop any existing momentum
-            stopMomentum()
+            // Stop any existing animations
+            stopAllAnimations()
             
         case .changed:
             // Calculate new FOV based on pinch scale
@@ -163,13 +225,13 @@ class Camera {
     
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
         // Notify delegate about tap location for star detection
-        if let view = gesture.view, !isMomentumActive {
+        if let view = gesture.view, !isMomentumActive && panAnimation == nil {
             let tapLocation = gesture.location(in: view)
             delegate?.camera(self, didTapAt: tapLocation, in: view.bounds.size)
+        } else {
+            // Stop any active animations if they're running
+            stopAllAnimations()
         }
-
-        // Stop momentum animation if it's running
-        stopMomentum()
     }
     
     // MARK: - Matrix Updates
@@ -179,11 +241,11 @@ class Camera {
         // Camera stays at origin, but we rotate the world around it
         
         // Create individual rotations
-        let azimuthRotation = matrix_float4x4(rotationAngle: azimuth, axis: SIMD3<Float>(0, 1, 0))
-        let altitudeRotation = matrix_float4x4(rotationAngle: altitude, axis: SIMD3<Float>(1, 0, 0))
+        let raRotation = matrix_float4x4(rotationAngle: ra, axis: SIMD3<Float>(0, 1, 0))
+        let decRotation = matrix_float4x4(rotationAngle: dec, axis: SIMD3<Float>(1, 0, 0))
         
-        // Combine rotations: apply azimuth first, then altitude
-        viewMatrix = altitudeRotation * azimuthRotation
+        // Combine rotations: apply ra first, then dec
+        viewMatrix = decRotation * raRotation
         
         // Notify delegate
         delegate?.camera(self, didUpdateViewMatrix: viewMatrix)
@@ -212,40 +274,69 @@ class Camera {
     
     private func stopMomentum() {
         isMomentumActive = false
-        azimuthVelocity = 0
-        altitudeVelocity = 0
+        raVelocity = 0
+        decVelocity = 0
+    }
+    
+    private func stopAllAnimations() {
+        stopMomentum()
+        panAnimation = nil
     }
     
     // Public method for external momentum updates from renderer's display link
     func updateMomentumWithDeltaTime(_ deltaTime: Float) {
+        // Handle pan animation first (higher priority)
+        if var animation = panAnimation {
+            animation.elapsedTime += deltaTime
+            
+            let position = animation.getCurrentPosition()
+            ra = position.ra
+            dec = position.dec
+            
+            // Clamp dec to prevent flipping over poles
+            dec = max(-Float.pi/2, min(Float.pi/2, dec))
+            
+            updateViewMatrix()
+            
+            if animation.isComplete {
+                panAnimation = nil
+            } else {
+                panAnimation = animation
+            }
+            
+            return
+        }
+        
+        // Handle momentum animation if no pan animation is active
         guard isMomentumActive else { return }
         
         let damping: Float = 0.925
         let minimumVelocity: Float = 0.02
         
         // Apply velocities to rotation using provided delta time
-        azimuth += azimuthVelocity * deltaTime
-        altitude += altitudeVelocity * deltaTime
+        ra += raVelocity * deltaTime
+        dec += decVelocity * deltaTime
         
-        // Keep azimuth in -π to π range
-        if azimuth > Float.pi {
-            azimuth -= 2 * Float.pi
-        } else if azimuth < -Float.pi {
-            azimuth += 2 * Float.pi
+        // Keep ra in 0 to 2π range
+        while ra < 0 {
+            ra += 2 * Float.pi
+        }
+        while ra >= 2 * Float.pi {
+            ra -= 2 * Float.pi
         }
         
-        // Clamp altitude to prevent flipping over poles
-        altitude = max(-Float.pi/2, min(Float.pi/2, altitude))
+        // Clamp dec to prevent flipping over poles
+        dec = max(-Float.pi/2, min(Float.pi/2, dec))
         
         // Apply damping to velocities
-        azimuthVelocity *= damping
-        altitudeVelocity *= damping
+        raVelocity *= damping
+        decVelocity *= damping
         
         // Update view matrix
         updateViewMatrix()
         
         // Stop momentum if velocities are too small
-        if abs(azimuthVelocity) < minimumVelocity && abs(altitudeVelocity) < minimumVelocity {
+        if abs(raVelocity) < minimumVelocity && abs(decVelocity) < minimumVelocity {
             stopMomentum()
         }
     }
@@ -257,15 +348,10 @@ class Camera {
         self.aspectRatio = aspectRatio
         updateProjectionMatrix()
     }
-    
-    /// Get current camera rotation in degrees
-    var rotation: (azimuth: Float, altitude: Float) {
-        return (azimuth * 180.0 / Float.pi, altitude * 180.0 / Float.pi)
-    }
-    
-    /// Get current field of view in degrees
-    var fieldOfView: Float {
-        return currentFOV
+
+    /// Check if any animation is currently active
+    var isAnimating: Bool {
+        return isMomentumActive || panAnimation != nil
     }
     
     /// Get current view matrix
@@ -277,31 +363,32 @@ class Camera {
     var currentProjectionMatrix: matrix_float4x4 {
         return projectionMatrix
     }
-    
-    /// Programmatically set camera rotation in degrees
-    func setRotation(azimuth: Float, altitude: Float) {
-        self.azimuth = azimuth * Float.pi / 180.0
-        self.altitude = max(-90.0, min(90.0, altitude)) * Float.pi / 180.0
-        
-        stopMomentum()
-        updateViewMatrix()
-    }
-    
-    /// Programmatically set field of view in degrees
-    func setFieldOfView(_ fov: Float) {
-        currentFOV = max(minFOV, min(maxFOV, fov))
-        updateProjectionMatrix()
-    }
-    
+
     /// Reset camera to default position
     func resetToDefault() {
-        azimuth = 0
-        altitude = 0
+        ra = 0
+        dec = 0
         currentFOV = 90.0
         
-        stopMomentum()
+        stopAllAnimations()
         updateViewMatrix()
         updateProjectionMatrix()
+    }
+    
+    /// Start smooth animation to target rotation using the new animation system
+    func startPanAnimationTo(ra targetRa: Float, dec targetDec: Float) {
+        // Stop any existing animations
+        stopAllAnimations()
+        
+        // Clamp target declination to valid range
+        let clampedTargetDec = max(-Float.pi/2, min(Float.pi/2, targetDec))
+        
+        // Create new pan animation
+        panAnimation = PanAnimation(
+            from: (ra: ra, dec: dec),
+            to: (ra: targetRa, dec: clampedTargetDec),
+            duration: 1.5
+        )
     }
     
     // MARK: - Coordinate Conversion Utilities

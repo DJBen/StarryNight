@@ -39,7 +39,7 @@ final class CrosshairRenderer {
     func updateSelectedStar(_ star: Star?, deltaTime: Float) {
         if let star = star {
             // Convert star coordinate to world position
-            let coord = simd_normalize(SIMD3<Float>(Float(star.coordinate.x), Float(star.coordinate.y), Float(star.coordinate.z)))
+            let coord = simd_normalize(SIMD3<Float>(star.coordinate))
             self.selectedStarWorldPosition = starToWorldTransform * coord * 10.0
             
             // Update rotation animation
@@ -78,7 +78,6 @@ final class CrosshairRenderer {
             blendMode: 0,
             transparency: rotationAngle / (2 * Float.pi), // Pass normalized rotation angle
             fov: fov, // Pass FOV for perspective scaling
-            forceColor: true,
             color: SIMD4<Float>(1.0, 1.0, 0.0, 0.8) // Yellow with some transparency
         )
         

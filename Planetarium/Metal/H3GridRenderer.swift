@@ -106,7 +106,6 @@ final class H3GridRenderer {
             blendMode: 0,
             transparency: 1.0,
             fov: currentFOVDegrees,
-            forceColor: false,
             color: SIMD4<Float>(0,0,0,0)
         )
         renderEncoder.setVertexBytes(&uniforms, length: MemoryLayout<Uniforms>.size, index: BufferIndex.uniforms.rawValue)
