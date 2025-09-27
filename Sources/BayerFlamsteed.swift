@@ -25,7 +25,7 @@ public struct BayerFlamsteed: CustomStringConvertible, Hashable, Equatable, Send
         case .flamsteed:
             return "\(flamsteed!)\(superscriptedBinaryNumber) \(constellation.genitive)"
         case .bayerFlamsteed:
-            return "\(flamsteed!) \(greekLetter!)\(superscriptedBinaryNumber) \(constellation.genitive)"
+            return "\(greekLetter!)\(superscriptedBinaryNumber) \(constellation.genitive)"
         }
     }
 

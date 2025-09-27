@@ -41,12 +41,12 @@ public struct Star: Hashable, Equatable, @unchecked Sendable {
     }
 
     /// Load detailed information for this star
-    public mutating func loadInfo(starManager: StarManager) {
+    public mutating func loadInfo(starManager: any StarManaging) {
         self.info = starManager.starInfo(forId: id)
     }
     
     /// Create a new star with detailed information loaded
-    public func withInfo(starManager: StarManager) -> Star {
+    public func withInfo(starManager: any StarManaging) -> Star {
         var star = self
         star.loadInfo(starManager: starManager)
         return star
@@ -138,8 +138,7 @@ public struct StarInfo: Hashable, Equatable, Sendable {
     }
     
     public var displayName: String? {
-        let bfDesignation = bayerFlamsteedDesignation
-        return properName ?? bfDesignation ?? gl ?? hrIdString ?? hdIdString ?? hipIdString
+        return properName ?? bayerFlamsteedDesignation ?? gl ?? hrIdString ?? hdIdString ?? hipIdString
     }
     
     /// Parse Constellation enum from the constellation property

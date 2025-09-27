@@ -96,7 +96,7 @@ vertex StarVaryings star_vertex(
     float fov_rad = uniforms.fov * (3.14159265359 / 180.0);
     float perspective_scale = tan(fov_rad / 2.0);
     
-    starView.xy += quadPos.xy * size / star.sensorPixelSize * 0.015 * perspective_scale;
+    starView.xy += quadPos.xy * size / star.sensorPixelSize * 0.01 * perspective_scale;
 
     out.position = uniforms.projectionMatrix * starView;
     out.uv = quadPos.xy * 0.5 + 0.5;

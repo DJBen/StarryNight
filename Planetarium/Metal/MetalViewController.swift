@@ -153,11 +153,27 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     }
     
     private func updateSelectedStar(_ star: Star?) {
+        let star = star?.withInfo(starManager: starManager)
         selectedStar = star
         
+        // Update the renderer with the selected star for crosshair display
+        renderer?.setSelectedStar(star)
+
         if let star = star {
             // Show toolbar with star name
-            let displayName = star.info?.displayName ?? "Unknown Star"
+            var displayName: String
+            if let bayerFlamsteedDesignation = star.info?.bayerFlamsteedDesignation, let properName = star.info?.properName {
+                displayName = String(
+                    format: NSLocalizedString(
+                        "%@ (%@)",
+                        comment: "Bayer flamsteed designation plus proper name"
+                    ),
+                    bayerFlamsteedDesignation,
+                    properName
+                )
+            } else {
+                displayName = star.info?.displayName ?? "Unknown star"
+            }
             starNameButton.title = displayName
             starNameButton.isEnabled = true
             starToolbar.isHidden = false
@@ -192,8 +208,16 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     
     // MARK: - StarTapDelegate
     
-    func didSelectStar(_ star: Star?) {
-        updateSelectedStar(star)
+    func didSelectStars(_ stars: [Star], fov: Float) {
+        let starToSelect: Star?
+        if stars.contains(where: { $0.id == selectedStar?.id }) {
+            starToSelect = stars.first { $0.id != selectedStar?.id }
+        } else if let firstCandidate = stars.first {
+            starToSelect = firstCandidate
+        } else {
+            starToSelect = nil
+        }
+        updateSelectedStar(starToSelect)
     }
     
     private func showStarInfoAlert(for star: Star) {
@@ -210,6 +234,11 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         
         // Magnitude
         infoText += String(format: "Magnitude: %.2f\n", star.magnitude)
+        
+        // Right Ascension and Declination
+        let raDec = coordinatesToRaDec(star.coordinate)
+        infoText += "RA: \(formatRA(raDec.ra))\n"
+        infoText += "Dec: \(formatDec(raDec.dec))\n"
         
         // Spectral class
         if let spectralClass = star.spectralClass {
@@ -266,5 +295,46 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         
         present(alert, animated: true)
         #endif
+    }
+    
+    // MARK: - Coordinate Conversion Helpers
+    
+    private func coordinatesToRaDec(_ coordinate: SIMD3<Double>) -> (ra: Double, dec: Double) {
+        let coord_norm = simd_normalize(coordinate)
+        // Convert to spherical coordinates
+        // Declination: arcsin(z)
+        let decRadians = asin(coord_norm.z)
+        let decDegrees = decRadians * 180.0 / .pi
+        
+        // Right Ascension: atan2(y, x), converted to hours (0-24)
+        let raRadians = atan2(coord_norm.y, coord_norm.y)
+        var raHours = raRadians * 12.0 / .pi // Convert radians to hours (24h = 2π radians)
+        
+        // Ensure RA is in range 0-24 hours
+        if raHours < 0 {
+            raHours += 24.0
+        }
+        
+        return (ra: raHours, dec: decDegrees)
+    }
+    
+    private func formatRA(_ raHours: Double) -> String {
+        let hours = Int(raHours)
+        let minutesFloat = (raHours - Double(hours)) * 60.0
+        let minutes = Int(minutesFloat)
+        let seconds = (minutesFloat - Double(minutes)) * 60.0
+        
+        return String(format: "%02dh %02dm %04.1fs", hours, minutes, seconds)
+    }
+    
+    private func formatDec(_ decDegrees: Double) -> String {
+        let sign = decDegrees >= 0 ? "+" : "-"
+        let absDecDegrees = abs(decDegrees)
+        let degrees = Int(absDecDegrees)
+        let minutesFloat = (absDecDegrees - Double(degrees)) * 60.0
+        let minutes = Int(minutesFloat)
+        let seconds = (minutesFloat - Double(minutes)) * 60.0
+        
+        return String(format: "%@%02lld° %02lld' %04.1lf\"", sign, degrees, minutes, seconds)
     }
 }

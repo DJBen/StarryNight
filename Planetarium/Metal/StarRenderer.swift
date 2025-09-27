@@ -136,7 +136,6 @@ final class StarRenderer {
             blendMode: 0,
             transparency: time,
             fov: fov,
-            forceColor: false,
             color: SIMD4<Float>(0,0,0,0)
         )
         renderEncoder.setVertexBytes(&uniforms, length: MemoryLayout<Uniforms>.size, index: BufferIndex.uniforms.rawValue)
@@ -198,7 +197,7 @@ final class StarRenderer {
     }
 
     private static func starToInstance(_ star: Star) -> StarInstance {
-        let coord = simd_normalize(SIMD3<Float>(Float(star.coordinate.x), Float(star.coordinate.y), Float(star.coordinate.z)))
+        let coord = simd_normalize(SIMD3<Float>(star.coordinate))
         let converted = starToWorldTransform * coord
 
         let color = spectralColor(for: star)
