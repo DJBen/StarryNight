@@ -40,7 +40,7 @@ public enum H3Utils {
         }
     }
     
-    private static func cellsForStandardViewport(vertices: [LatLng], resolution: Int32) -> [H3Index] {
+    static func cellsForStandardViewport(vertices: [LatLng], resolution: Int32) -> [H3Index] {
         let geoloop = GeoLoop(numVerts: Int32(vertices.count), verts: UnsafeMutablePointer<LatLng>.allocate(capacity: vertices.count))
         for (index, coord) in vertices.enumerated() {
             geoloop.verts[index] = coord
@@ -53,7 +53,7 @@ public enum H3Utils {
         return getCells(for: &polygon, resolution: resolution)
     }
     
-    private static func cellsForPolarViewport(vertices: [LatLng], resolution: Int32) -> [H3Index] {
+    static func cellsForPolarViewport(vertices: [LatLng], resolution: Int32) -> [H3Index] {
         // Fan out many small "pizza slices" from the pole to the boundary latitude
         // to avoid polyfill artifacts near the pole and dateline wrapping issues.
         // Assumptions: vertices define a polar cap-like viewport (e.g., a rectangle)

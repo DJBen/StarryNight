@@ -40,6 +40,9 @@ class Renderer: NSObject, MTKViewDelegate {
     
     // Delegate for star tap handling
     weak var starTapDelegate: StarTapDelegate?
+    
+    // Reference to MetalViewController for debug updates
+    weak var metalViewController: MetalViewController?
 
     var depthTexture: MTLTexture
     var stencilTexture: MTLTexture
@@ -156,6 +159,10 @@ class Renderer: NSObject, MTKViewDelegate {
         get { h3GridRenderer.isVisible }
         set { h3GridRenderer.isVisible = newValue }
     }
+    
+    // MARK: - Debug viewport control
+    
+    public var isDebugViewportVisible: Bool = false
     
     // MARK: - Star selection
     
@@ -303,15 +310,18 @@ class Renderer: NSObject, MTKViewDelegate {
 extension Renderer: CameraDelegate {
     func camera(_ camera: Camera, didUpdateViewMatrix viewMatrix: matrix_float4x4) {
         self.viewMatrix = viewMatrix
+        metalViewController?.updateDebugInfoIfNeeded()
     }
 
     func camera(_ camera: Camera, didUpdateProjectionMatrix projectionMatrix: matrix_float4x4) {
         self.projectionMatrix = projectionMatrix
+        metalViewController?.updateDebugInfoIfNeeded()
     }
 
     func camera(_ camera: Camera, didUpdateFOV fov: Float) {
         // Optionally handle FOV changes for UI updates or other purposes
         print("Camera FOV updated to: \(fov)°")
+        metalViewController?.updateDebugInfoIfNeeded()
     }
     
     func camera(_ camera: Camera, didTapAt location: CGPoint, in viewSize: CGSize) {

@@ -14,6 +14,7 @@ typealias PlatformViewController = UIViewController
 #endif
 import MetalKit
 import StarryNight
+import Ch3
 
 class MetalViewController: PlatformViewController, StarTapDelegate
 {
@@ -26,6 +27,9 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     private var selectedStar: Star?
     private var starToolbar: UIToolbar!
     private var starNameButton: UIBarButtonItem!
+    
+    // Debug viewport UI
+    private var debugInfoLabel: UILabel!
 
     init(starManager: any StarManaging) {
         self.starManager = starManager
@@ -62,6 +66,9 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         
         // Create star toolbar
         setupStarToolbar()
+        
+        // Create debug info label
+        setupDebugInfoLabel()
 
         // Set up MTKView constraints
         NSLayoutConstraint.activate([
@@ -97,6 +104,9 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         
         // Set up star tap delegation
         renderer.starTapDelegate = self
+        
+        // Set up debug viewport reference
+        renderer.metalViewController = self
 
         // Set up Metal display link (iOS 17+)
         guard let metalLayer = mtkView.layer as? CAMetalLayer else {
@@ -139,6 +149,46 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         
         // Initially hide the toolbar
         starToolbar.isHidden = true
+    }
+    
+    private func setupDebugInfoLabel() {
+        // Create a container view for padding
+        let containerView = UIView()
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.backgroundColor = UIColor.black.withAlphaComponent(0.7)
+        containerView.layer.cornerRadius = 8
+        containerView.clipsToBounds = true
+        view.addSubview(containerView)
+        
+        debugInfoLabel = UILabel()
+        debugInfoLabel.translatesAutoresizingMaskIntoConstraints = false
+        debugInfoLabel.textColor = .white
+        debugInfoLabel.font = UIFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        debugInfoLabel.numberOfLines = 0
+        debugInfoLabel.textAlignment = .left
+        containerView.addSubview(debugInfoLabel)
+        
+        // Set up constraints for container
+        NSLayoutConstraint.activate([
+            containerView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+            containerView.bottomAnchor.constraint(equalTo: starToolbar.topAnchor, constant: -8),
+            containerView.widthAnchor.constraint(lessThanOrEqualToConstant: 300)
+        ])
+        
+        // Set up constraints for debug label with padding
+        NSLayoutConstraint.activate([
+            debugInfoLabel.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 8),
+            debugInfoLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 8),
+            debugInfoLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -8),
+            debugInfoLabel.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -8)
+        ])
+        
+        // Initially hide the container
+        containerView.isHidden = true
+        
+        // Store reference to container for hiding/showing
+        debugInfoLabel.superview?.isHidden = true
+        
     }
 
     @objc private func resetCamera() {
@@ -188,12 +238,22 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     @objc private func showOptions() {
         #if os(iOS) || os(tvOS)
         let isGridOn = renderer?.isH3GridVisible ?? true
+        let isDebugOn = renderer?.isDebugViewportVisible ?? false
         let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-        let toggleTitle = isGridOn ? "Hide H3 Grid" : "Show H3 Grid"
-        sheet.addAction(UIAlertAction(title: toggleTitle, style: .default, handler: { [weak self] _ in
+        
+        let gridToggleTitle = isGridOn ? "Hide H3 Grid" : "Show H3 Grid"
+        sheet.addAction(UIAlertAction(title: gridToggleTitle, style: .default, handler: { [weak self] _ in
             guard let self = self, let renderer = self.renderer else { return }
             renderer.isH3GridVisible.toggle()
         }))
+        
+        let debugToggleTitle = isDebugOn ? "Hide Debug Viewport" : "Show Debug Viewport"
+        sheet.addAction(UIAlertAction(title: debugToggleTitle, style: .default, handler: { [weak self] _ in
+            guard let self = self, let renderer = self.renderer else { return }
+            renderer.isDebugViewportVisible.toggle()
+            self.updateDebugViewportVisibility()
+        }))
+        
         sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
 
         // iPad popover anchor
@@ -336,5 +396,80 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         let seconds = (minutesFloat - Double(minutes)) * 60.0
         
         return String(format: "%@%02lld° %02lld' %04.1lf\"", sign, degrees, minutes, seconds)
+    }
+    
+    // MARK: - Debug Viewport Methods
+    
+    private func updateDebugViewportVisibility() {
+        guard let renderer = renderer else { return }
+        let shouldShow = renderer.isDebugViewportVisible
+        debugInfoLabel.superview?.isHidden = !shouldShow
+        
+        if shouldShow {
+            updateDebugInfo()
+        }
+    }
+    
+    private func updateDebugInfo() {
+        guard let renderer = renderer, renderer.isDebugViewportVisible else {
+            debugInfoLabel.superview?.isHidden = true
+            return
+        }
+        
+        let viewSize = mtkView.bounds.size
+        let cornerRays = renderer.camera.getFrustumCornerRays(viewSize: viewSize)
+        
+        // Convert rays to lat/lng
+        var debugText = "Viewport (rad):\n"
+        let cornerNames = ["Top-Left:\t", "Top-Right:\t", "Bottom-Left:", "Bottom-Right:"]
+
+        for (index, ray) in cornerRays.enumerated() {
+            let latLng = rayToLatLng(ray)
+            debugText += String(
+                format: "%@\t%.3f,\t%.3f\n",
+                cornerNames[index],
+                latLng.lat,
+                latLng.lng
+            )
+        }
+        
+        // Get center coordinates
+        let centerPoint = CGPoint(x: viewSize.width / 2, y: viewSize.height / 2)
+        let centerRay = renderer.camera.screenToWorldRay(screenPoint: centerPoint, viewSize: viewSize)
+        let centerLatLng = rayToLatLng(centerRay)
+        debugText += String(format: "Center:\t\t\t%.3f,\t%.3f\n", centerLatLng.lat, centerLatLng.lng)
+
+        // Check if poles are visible using H3Utils
+        let cornerLatLngs = cornerRays.map { ray -> LatLng in
+            let latLng = rayToLatLng(ray)
+            return LatLng(lat: Double(latLng.lat), lng: Double(latLng.lng))
+        }
+        let isPoleVisible = H3Utils.containsPole(vertices: cornerLatLngs)
+        debugText += String(format: "\nPole Visible: %@", isPoleVisible ? "Yes" : "No")
+        
+        debugInfoLabel.text = debugText
+    }
+    
+    private func rayToLatLng(_ ray: SIMD3<Float>) -> (lat: Float, lng: Float) {
+        let normalizedRay = normalize(starToWorldTransform.inverse * ray)
+        
+        // Convert to spherical coordinates
+        // Latitude: arcsin(z) in radians
+        let latRadians = asin(normalizedRay.z)
+        
+        // Longitude: atan2(y, x) in radians
+        let lngRadians = atan2(normalizedRay.y, normalizedRay.x)
+        
+        return (lat: latRadians, lng: lngRadians)
+    }
+    
+
+    
+    // MARK: - Public Methods for Renderer
+    
+    public func updateDebugInfoIfNeeded() {
+        if renderer?.isDebugViewportVisible == true {
+            updateDebugInfo()
+        }
     }
 }
