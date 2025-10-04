@@ -307,7 +307,7 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         let decDegrees = decRadians * 180.0 / .pi
         
         // Right Ascension: atan2(y, x), converted to hours (0-24)
-        let raRadians = atan2(coord_norm.y, coord_norm.y)
+        let raRadians = atan2(coord_norm.y, coord_norm.x)
         var raHours = raRadians * 12.0 / .pi // Convert radians to hours (24h = 2π radians)
         
         // Ensure RA is in range 0-24 hours
