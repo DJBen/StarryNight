@@ -85,7 +85,10 @@ class Camera {
     // Camera rotation state (spherical coordinates)
     private var ra: Float = 0      // Horizontal rotation (longitude) 0 to 2π
     private var dec: Float = 0     // Vertical rotation (latitude) -π/2 to π/2
-    
+
+    // Adjust horizontal movement responsiveness near the poles
+    private var raDeclinationCompensation: Float = 1.0
+
     // Momentum properties for smooth pan animations
     private var raVelocity: Float = 0
     private var decVelocity: Float = 0
@@ -143,22 +146,24 @@ class Camera {
         
         // Calculate FOV-adjusted sensitivity to maintain consistent panning speed
         // When FOV is smaller (zoomed in), reduce sensitivity proportionally
-        let baseSensitivity: Float = 0.0025
+        let baseSensitivity: Float = 0.002
         let fovAdjustment = currentFOV / maxFOV
         let adjustedSensitivity = baseSensitivity * fovAdjustment
         
         // Convert pan to rotation with FOV-adjusted sensitivity
         let deltaX = -Float(translation.x) * adjustedSensitivity
         let deltaY = -Float(translation.y) * adjustedSensitivity
-        
+
         switch gesture.state {
         case .began:
             // Stop any existing animations
             stopAllAnimations()
+            updateDeclinationCompensation(for: gesture)
             
         case .changed:
+            let horizontalDelta = deltaX * raDeclinationCompensation
             // Update ra (horizontal pan = rotate around Y axis)
-            ra += deltaX
+            ra += horizontalDelta
             
             // Keep ra in 0 to 2π range for consistency
             while ra < 0 {
@@ -175,7 +180,7 @@ class Camera {
             dec = max(-Float.pi/2, min(Float.pi/2, dec))
             
             // Calculate velocities from gesture velocity with FOV adjustment
-            raVelocity = -Float(velocity.x) * adjustedSensitivity
+            raVelocity = -Float(velocity.x) * adjustedSensitivity * raDeclinationCompensation
             decVelocity = -Float(velocity.y) * adjustedSensitivity
             
             // Update view matrix
@@ -192,7 +197,35 @@ class Camera {
         
         gesture.setTranslation(.zero, in: gesture.view)
     }
-    
+
+    /// Updates the declination compensation, a multiplier of RA panning speed.
+    /// This value equates (1/cos(declination)) to keep RA panning speed consistent
+    /// regardless of the current declination.
+    ///
+    /// - Parameter gesture: The pan gesture recognizer.
+    private func updateDeclinationCompensation(for gesture: UIPanGestureRecognizer) {
+        guard let view = gesture.view else {
+            raDeclinationCompensation = 1.0
+            return
+        }
+
+        let location = gesture.location(in: view)
+        let viewSize = view.bounds.size
+
+        guard viewSize.width > 0, viewSize.height > 0 else {
+            raDeclinationCompensation = 1.0
+            return
+        }
+
+        let ray = starToWorldTransform.inverse * screenToWorldRay(screenPoint: location, viewSize: viewSize)
+        let clampedZ = max(-1.0 as Float, min(1.0 as Float, ray.z))
+        let declination = asin(clampedZ)
+        let cosDeclination = cos(declination)
+        let minimumCosine: Float = 0.0001
+        let safeCosine = max(abs(cosDeclination), minimumCosine)
+        raDeclinationCompensation = 1.0 / safeCosine
+    }
+
     @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
         switch gesture.state {
         case .began:
@@ -310,7 +343,7 @@ class Camera {
         // Handle momentum animation if no pan animation is active
         guard isMomentumActive else { return }
         
-        let damping: Float = 0.925
+        let damping: Float = 0.9
         let minimumVelocity: Float = 0.02
         
         // Apply velocities to rotation using provided delta time
