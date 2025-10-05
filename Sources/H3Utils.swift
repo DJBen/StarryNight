@@ -63,65 +63,7 @@ public enum H3Utils {
             })
         }
 
-        let isCenterNorthern = abs(viewport.topLeft.lat) > abs(viewport.bottomLeft.lat)
-        // Check if the viewport wraps around longitude
-        let wraps = sign(normalizeLng(viewport.topLeft.lng - viewport.topRight.lng)) != sign(normalizeLng(viewport.bottomLeft.lng - viewport.bottomRight.lng))
-        let topWraps = isCenterNorthern && wraps
-        let bottomWraps = !isCenterNorthern && wraps
-
         var allCells = Set<H3Index>()
-        if topWraps {
-            // Split into two polygons: TL-0-BR-BL and 0-TR-BR-BL
-//            let viewport1 = Viewport(
-//                topLeft: viewport.topLeft,
-//                topRight: LatLng(lat: viewport.topRight.lat, lng: 0),
-//                bottomLeft: viewport.bottomLeft,
-//                bottomRight: LatLng(lat: viewport.bottomRight.lat, lng: 0)
-//            )
-//            let viewport2 = Viewport(
-//                topLeft: LatLng(lat: viewport.topLeft.lat, lng: 0),
-//                topRight: viewport.topRight,
-//                bottomLeft: LatLng(lat: viewport.bottomLeft.lat, lng: 0),
-//                bottomRight: viewport.bottomRight
-//            )
-//            var (polygon1, deallocateVerts1) = makeGeoPolygon(from: viewport1)
-//            var (polygon2, deallocateVerts2) = makeGeoPolygon(from: viewport2)
-//
-//            let cells1 = getCells(for: &polygon1, resolution: resolution)
-//            let cells2 = getCells(for: &polygon2, resolution: resolution)
-//            allCells.formUnion(cells1)
-//            allCells.formUnion(cells2)
-//
-//            deallocateVerts1()
-//            deallocateVerts2()
-            print("T: \(viewport)")
-        } else if bottomWraps {
-            // Split into two polygons: TL-TR-0-BL and TL-TR-BR-0
-//            let viewport1 = Viewport(
-//                topLeft: viewport.topLeft,
-//                topRight: viewport.topRight,
-//                bottomLeft: viewport.bottomLeft,
-//                bottomRight: LatLng(lat: viewport.bottomRight.lat, lng: 0)
-//            )
-//            let viewport2 = Viewport(
-//                topLeft: viewport.topLeft,
-//                topRight: viewport.topRight,
-//                bottomLeft: LatLng(lat: viewport.bottomLeft.lat, lng: 0),
-//                bottomRight: viewport.bottomRight
-//            )
-//
-//            var (polygon1, deallocateVerts1) = makeGeoPolygon(from: viewport1)
-//            var (polygon2, deallocateVerts2) = makeGeoPolygon(from: viewport2)
-//
-//            let cells1 = getCells(for: &polygon1, resolution: resolution)
-//            let cells2 = getCells(for: &polygon2, resolution: resolution)
-//            allCells.formUnion(cells1)
-//            allCells.formUnion(cells2)
-//
-//            deallocateVerts1()
-//            deallocateVerts2()
-            print("B: \(viewport)")
-        }
         var (polygon, deallocateVerts) = makeGeoPolygon(from: viewport)
         allCells = Set(getCells(for: &polygon, resolution: resolution))
         deallocateVerts()
