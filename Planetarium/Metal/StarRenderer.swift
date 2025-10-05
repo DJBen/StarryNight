@@ -57,8 +57,10 @@ final class StarRenderer {
 
         // 2. Determine visible H3 cells for each resolution
         let viewportCorners = [
-            simd_float3(-1, -1, 1), simd_float3(1, -1, 1),
-            simd_float3(1, 1, 1), simd_float3(-1, 1, 1)
+            simd_float3(-1, -1, 1), // Bottom-Left
+            simd_float3(1, -1, 1),  // Bottom-Right
+            simd_float3(1, 1, 1),   // Top-Right
+            simd_float3(-1, 1, 1)   // Top-Left
         ]
         let invMVP = (projectionMatrix * viewMatrix).inverse
         let worldCorners = viewportCorners.map {
@@ -79,7 +81,17 @@ final class StarRenderer {
             let res32 = Int32(res)
             var newCells = Set<H3Index>()
             if resolutionsToShow.contains(res32) {
-                newCells = Set(H3Utils.h3Cells(inViewport: latLngVertices, resolution: res32))
+                newCells = Set(
+                    H3Utils.h3Cells(
+                        inViewport: Viewport(
+                            topLeft: latLngVertices[3],
+                            topRight: latLngVertices[2],
+                            bottomLeft: latLngVertices[0],
+                            bottomRight: latLngVertices[1]
+                        ),
+                        resolution: res32
+                    )
+                )
             }
 
             if activeH3CellsByRes[res] != newCells {

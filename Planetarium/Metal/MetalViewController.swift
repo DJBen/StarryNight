@@ -18,6 +18,13 @@ import Ch3
 
 class MetalViewController: PlatformViewController, StarTapDelegate
 {
+    
+    // MARK: - UserDefaults Keys
+    private struct UserDefaultsKeys {
+        static let isH3GridVisible = "MetalViewController.isH3GridVisible"
+        static let isDebugViewportVisible = "MetalViewController.isDebugViewportVisible"
+        static let isDebugFormatRadians = "MetalViewController.isDebugFormatRadians"
+    }
 
     private let starManager: StarManaging
     var renderer: Renderer!
@@ -30,6 +37,11 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     
     // Debug viewport UI
     private var debugInfoLabel: UILabel!
+    private var isDebugFormatRadians = true {
+        didSet {
+            UserDefaults.standard.set(isDebugFormatRadians, forKey: UserDefaultsKeys.isDebugFormatRadians)
+        }
+    }
 
     init(starManager: any StarManaging) {
         self.starManager = starManager
@@ -42,6 +54,9 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        // Restore persisted settings
+        restorePersistedSettings()
 
         // Add Reset button to navigation bar
         navigationItem.leftBarButtonItem = UIBarButtonItem(
@@ -107,6 +122,9 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         
         // Set up debug viewport reference
         renderer.metalViewController = self
+        
+        // Apply persisted settings to renderer
+        applyPersistedSettingsToRenderer()
 
         // Set up Metal display link (iOS 17+)
         guard let metalLayer = mtkView.layer as? CAMetalLayer else {
@@ -172,7 +190,7 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         NSLayoutConstraint.activate([
             containerView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
             containerView.bottomAnchor.constraint(equalTo: starToolbar.topAnchor, constant: -8),
-            containerView.widthAnchor.constraint(lessThanOrEqualToConstant: 300)
+            containerView.leadingAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16)
         ])
         
         // Set up constraints for debug label with padding
@@ -182,6 +200,11 @@ class MetalViewController: PlatformViewController, StarTapDelegate
             debugInfoLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -8),
             debugInfoLabel.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -8)
         ])
+        
+        // Add tap gesture to toggle format
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(toggleDebugFormat))
+        containerView.addGestureRecognizer(tapGesture)
+        containerView.isUserInteractionEnabled = true
         
         // Initially hide the container
         containerView.isHidden = true
@@ -200,6 +223,11 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     @objc private func showSelectedStarInfo() {
         guard let star = selectedStar else { return }
         showStarInfoAlert(for: star)
+    }
+    
+    @objc private func toggleDebugFormat() {
+        isDebugFormatRadians.toggle()
+        updateDebugInfo()
     }
     
     private func updateSelectedStar(_ star: Star?) {
@@ -245,6 +273,8 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         sheet.addAction(UIAlertAction(title: gridToggleTitle, style: .default, handler: { [weak self] _ in
             guard let self = self, let renderer = self.renderer else { return }
             renderer.isH3GridVisible.toggle()
+            // Persist the setting
+            UserDefaults.standard.set(renderer.isH3GridVisible, forKey: UserDefaultsKeys.isH3GridVisible)
         }))
         
         let debugToggleTitle = isDebugOn ? "Hide Debug Viewport" : "Show Debug Viewport"
@@ -252,6 +282,8 @@ class MetalViewController: PlatformViewController, StarTapDelegate
             guard let self = self, let renderer = self.renderer else { return }
             renderer.isDebugViewportVisible.toggle()
             self.updateDebugViewportVisibility()
+            // Persist the setting
+            UserDefaults.standard.set(renderer.isDebugViewportVisible, forKey: UserDefaultsKeys.isDebugViewportVisible)
         }))
         
         sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
@@ -378,16 +410,20 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         return (ra: raHours, dec: decDegrees)
     }
     
-    private func formatRA(_ raHours: Double) -> String {
+    private func formatRA(_ raHours: Double, showDecimalSeconds: Bool = true) -> String {
         let hours = Int(raHours)
         let minutesFloat = (raHours - Double(hours)) * 60.0
         let minutes = Int(minutesFloat)
         let seconds = (minutesFloat - Double(minutes)) * 60.0
         
-        return String(format: "%02dh %02dm %04.1fs", hours, minutes, seconds)
+        if showDecimalSeconds {
+            return String(format: "%02dh %02dm %04.1fs", hours, minutes, seconds)
+        } else {
+            return String(format: "%02dh %02dm %02ds", hours, minutes, Int(seconds.rounded()))
+        }
     }
     
-    private func formatDec(_ decDegrees: Double) -> String {
+    private func formatDec(_ decDegrees: Double, showDecimalSeconds: Bool = true) -> String {
         let sign = decDegrees >= 0 ? "+" : "-"
         let absDecDegrees = abs(decDegrees)
         let degrees = Int(absDecDegrees)
@@ -395,7 +431,11 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         let minutes = Int(minutesFloat)
         let seconds = (minutesFloat - Double(minutes)) * 60.0
         
-        return String(format: "%@%02lld° %02lld' %04.1lf\"", sign, degrees, minutes, seconds)
+        if showDecimalSeconds {
+            return String(format: "%@%02lld° %02lld' %04.1lf\"", sign, degrees, minutes, seconds)
+        } else {
+            return String(format: "%@%02lld° %02lld' %02lld\"", sign, degrees, minutes, Int(seconds.rounded()))
+        }
     }
     
     // MARK: - Debug Viewport Methods
@@ -420,24 +460,21 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         let cornerRays = renderer.camera.getFrustumCornerRays(viewSize: viewSize)
         
         // Convert rays to lat/lng
-        var debugText = "Viewport (rad):\n"
+        var debugText = isDebugFormatRadians ? "Viewport (RA/Dec rad)\n" : "Viewport (RA/Dec)\n"
         let cornerNames = ["Top-Left:\t", "Top-Right:\t", "Bottom-Left:", "Bottom-Right:"]
 
         for (index, ray) in cornerRays.enumerated() {
             let latLng = rayToLatLng(ray)
-            debugText += String(
-                format: "%@\t%.3f,\t%.3f\n",
-                cornerNames[index],
-                latLng.lat,
-                latLng.lng
-            )
+            let formattedCoords = formatCoordinatesForDebug(latLng.lat, latLng.lng)
+            debugText += String(format: "%@\t%@\n", cornerNames[index], formattedCoords)
         }
         
         // Get center coordinates
         let centerPoint = CGPoint(x: viewSize.width / 2, y: viewSize.height / 2)
         let centerRay = renderer.camera.screenToWorldRay(screenPoint: centerPoint, viewSize: viewSize)
         let centerLatLng = rayToLatLng(centerRay)
-        debugText += String(format: "Center:\t\t\t%.3f,\t%.3f\n", centerLatLng.lat, centerLatLng.lng)
+        let centerFormatted = formatCoordinatesForDebug(centerLatLng.lat, centerLatLng.lng)
+        debugText += String(format: "Center:\t\t\t%@\n", centerFormatted)
 
         // Check if poles are visible using H3Utils
         let cornerLatLngs = cornerRays.map { ray -> LatLng in
@@ -445,6 +482,7 @@ class MetalViewController: PlatformViewController, StarTapDelegate
             return LatLng(lat: Double(latLng.lat), lng: Double(latLng.lng))
         }
         let isPoleVisible = H3Utils.containsPole(vertices: cornerLatLngs)
+        debugText += String(format: "\nFOV: %.1f°", renderer.camera.currentFOV)
         debugText += String(format: "\nPole Visible: %@", isPoleVisible ? "Yes" : "No")
         
         debugInfoLabel.text = debugText
@@ -463,6 +501,26 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         return (lat: latRadians, lng: lngRadians)
     }
     
+    private func formatCoordinatesForDebug(_ latRad: Float, _ lngRad: Float) -> String {
+        if isDebugFormatRadians {
+            return String(format: "%.3f,\t%.3f", lngRad, latRad)
+        } else {
+            // Convert to RA/Dec format
+            let decDegrees = Double(latRad * 180.0 / .pi)
+            var raHours = Double(lngRad * 12.0 / .pi) // Convert radians to hours
+            
+            // Ensure RA is in range 0-24 hours
+            if raHours < 0 {
+                raHours += 24.0
+            }
+            
+            let raFormatted = formatRA(raHours, showDecimalSeconds: false)
+            let decFormatted = formatDec(decDegrees, showDecimalSeconds: false)
+            
+            return "\(raFormatted), \(decFormatted)"
+        }
+    }
+    
 
     
     // MARK: - Public Methods for Renderer
@@ -471,5 +529,43 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         if renderer?.isDebugViewportVisible == true {
             updateDebugInfo()
         }
+    }
+    
+    // MARK: - Settings Persistence
+    
+    private func restorePersistedSettings() {
+        // Restore debug format setting (default to radians if not set)
+        if UserDefaults.standard.object(forKey: UserDefaultsKeys.isDebugFormatRadians) != nil {
+            isDebugFormatRadians = UserDefaults.standard.bool(forKey: UserDefaultsKeys.isDebugFormatRadians)
+        } else {
+            // Set default and persist it
+            isDebugFormatRadians = true
+            UserDefaults.standard.set(true, forKey: UserDefaultsKeys.isDebugFormatRadians)
+        }
+    }
+    
+    private func applyPersistedSettingsToRenderer() {
+        guard let renderer = renderer else { return }
+        
+        // Restore H3 Grid visibility (default to false if not set)
+        if UserDefaults.standard.object(forKey: UserDefaultsKeys.isH3GridVisible) != nil {
+            renderer.isH3GridVisible = UserDefaults.standard.bool(forKey: UserDefaultsKeys.isH3GridVisible)
+        } else {
+            // Set default and persist it
+            renderer.isH3GridVisible = false
+            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.isH3GridVisible)
+        }
+        
+        // Restore Debug Viewport visibility (default to false if not set)
+        if UserDefaults.standard.object(forKey: UserDefaultsKeys.isDebugViewportVisible) != nil {
+            renderer.isDebugViewportVisible = UserDefaults.standard.bool(forKey: UserDefaultsKeys.isDebugViewportVisible)
+        } else {
+            // Set default and persist it
+            renderer.isDebugViewportVisible = false
+            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.isDebugViewportVisible)
+        }
+        
+        // Apply debug viewport visibility to UI
+        updateDebugViewportVisibility()
     }
 }

@@ -2,7 +2,7 @@ import Foundation
 import simd
 import Ch3
 
-extension LatLng: @retroactive Equatable, @retroactive Hashable, @unchecked Sendable {
+extension LatLng: @retroactive Equatable, @retroactive Hashable, @retroactive @unchecked Sendable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(lat)
         hasher.combine(lng)
@@ -13,54 +13,127 @@ extension LatLng: @retroactive Equatable, @retroactive Hashable, @unchecked Send
     }
 }
 
+public struct Viewport: Equatable, Hashable, Sendable {
+    public var topLeft: LatLng
+    public var topRight: LatLng
+    public var bottomLeft: LatLng
+    public var bottomRight: LatLng
+
+    public init(topLeft: LatLng, topRight: LatLng, bottomLeft: LatLng, bottomRight: LatLng) {
+        self.topLeft = topLeft
+        self.topRight = topRight
+        self.bottomLeft = bottomLeft
+        self.bottomRight = bottomRight
+    }
+}
+
 public enum H3Utils {
     
     /// Get H3 cells for a given viewport and resolution.
     /// Handles viewports that cross the poles by splitting them into smaller polygons.
     /// - Parameters:
-    ///   - vertices: An array of 4 tuples representing the corners of the viewport in
-    ///               (latitude, longitude) format. The vertices should be ordered
-    ///               either clockwise or counter-clockwise.
+    ///   - viewport: A Viewport struct representing the corners of the viewport.
     ///   - resolution: The desired H3 resolution (0-15).
     /// - Returns: An array of H3Index values covering the specified viewport.
     public static func h3Cells(
-        inViewport vertices: [LatLng], 
+        inViewport viewport: Viewport, 
         resolution: Int32
     ) -> [H3Index] {
-        guard vertices.count == 4 else {
-            print("Error: Viewport must have exactly 4 vertices")
-            return []
+        // Check for pole containment
+        if containsPole(viewport: viewport) {
+            return cellsForPolarViewport(viewport: viewport, resolution: resolution)
+        } else {
+            return cellsForStandardViewport(viewport: viewport, resolution: resolution)
+        }
+    }
+    
+    static func cellsForStandardViewport(viewport: Viewport, resolution: Int32) -> [H3Index] {
+        func makeGeoPolygon(from viewport: Viewport) -> (GeoPolygon, () -> Void) {
+            let vertices = [viewport.topLeft, viewport.topRight, viewport.bottomRight, viewport.bottomLeft]
+            // Warning: geoloop needs to be kept as long as GeoPolygon is involved in computation
+            let geoloop = GeoLoop(numVerts: Int32(vertices.count), verts: UnsafeMutablePointer<LatLng>.allocate(capacity: vertices.count))
+            geoloop.verts[0] = vertices[0]
+            geoloop.verts[1] = vertices[1]
+            geoloop.verts[2] = vertices[2]
+            geoloop.verts[3] = vertices[3]
+            
+            let polygon = GeoPolygon(geoloop: geoloop, numHoles: 0, holes: nil)
+            return (polygon, {
+                geoloop.verts.deallocate()
+            })
         }
 
-        // Check for pole containment
-        if containsPole(vertices: vertices) {
-            return cellsForPolarViewport(vertices: vertices, resolution: resolution)
-        } else {
-            return cellsForStandardViewport(vertices: vertices, resolution: resolution)
+        let isCenterNorthern = abs(viewport.topLeft.lat) > abs(viewport.bottomLeft.lat)
+        // Check if the viewport wraps around longitude
+        let wraps = sign(normalizeLng(viewport.topLeft.lng - viewport.topRight.lng)) != sign(normalizeLng(viewport.bottomLeft.lng - viewport.bottomRight.lng))
+        let topWraps = isCenterNorthern && wraps
+        let bottomWraps = !isCenterNorthern && wraps
+
+        var allCells = Set<H3Index>()
+        if topWraps {
+            // Split into two polygons: TL-0-BR-BL and 0-TR-BR-BL
+//            let viewport1 = Viewport(
+//                topLeft: viewport.topLeft,
+//                topRight: LatLng(lat: viewport.topRight.lat, lng: 0),
+//                bottomLeft: viewport.bottomLeft,
+//                bottomRight: LatLng(lat: viewport.bottomRight.lat, lng: 0)
+//            )
+//            let viewport2 = Viewport(
+//                topLeft: LatLng(lat: viewport.topLeft.lat, lng: 0),
+//                topRight: viewport.topRight,
+//                bottomLeft: LatLng(lat: viewport.bottomLeft.lat, lng: 0),
+//                bottomRight: viewport.bottomRight
+//            )
+//            var (polygon1, deallocateVerts1) = makeGeoPolygon(from: viewport1)
+//            var (polygon2, deallocateVerts2) = makeGeoPolygon(from: viewport2)
+//
+//            let cells1 = getCells(for: &polygon1, resolution: resolution)
+//            let cells2 = getCells(for: &polygon2, resolution: resolution)
+//            allCells.formUnion(cells1)
+//            allCells.formUnion(cells2)
+//
+//            deallocateVerts1()
+//            deallocateVerts2()
+            print("T: \(viewport)")
+        } else if bottomWraps {
+            // Split into two polygons: TL-TR-0-BL and TL-TR-BR-0
+//            let viewport1 = Viewport(
+//                topLeft: viewport.topLeft,
+//                topRight: viewport.topRight,
+//                bottomLeft: viewport.bottomLeft,
+//                bottomRight: LatLng(lat: viewport.bottomRight.lat, lng: 0)
+//            )
+//            let viewport2 = Viewport(
+//                topLeft: viewport.topLeft,
+//                topRight: viewport.topRight,
+//                bottomLeft: LatLng(lat: viewport.bottomLeft.lat, lng: 0),
+//                bottomRight: viewport.bottomRight
+//            )
+//
+//            var (polygon1, deallocateVerts1) = makeGeoPolygon(from: viewport1)
+//            var (polygon2, deallocateVerts2) = makeGeoPolygon(from: viewport2)
+//
+//            let cells1 = getCells(for: &polygon1, resolution: resolution)
+//            let cells2 = getCells(for: &polygon2, resolution: resolution)
+//            allCells.formUnion(cells1)
+//            allCells.formUnion(cells2)
+//
+//            deallocateVerts1()
+//            deallocateVerts2()
+            print("B: \(viewport)")
         }
+        var (polygon, deallocateVerts) = makeGeoPolygon(from: viewport)
+        allCells = Set(getCells(for: &polygon, resolution: resolution))
+        deallocateVerts()
+
+        return Array(allCells)
     }
     
-    static func cellsForStandardViewport(vertices: [LatLng], resolution: Int32) -> [H3Index] {
-        let geoloop = GeoLoop(numVerts: Int32(vertices.count), verts: UnsafeMutablePointer<LatLng>.allocate(capacity: vertices.count))
-        for (index, coord) in vertices.enumerated() {
-            geoloop.verts[index] = coord
-        }
-        defer {
-            geoloop.verts.deallocate()
-        }
-        
-        var polygon = GeoPolygon(geoloop: geoloop, numHoles: 0, holes: nil)
-        return getCells(for: &polygon, resolution: resolution)
-    }
-    
-    static func cellsForPolarViewport(vertices: [LatLng], resolution: Int32) -> [H3Index] {
+    static func cellsForPolarViewport(viewport: Viewport, resolution: Int32) -> [H3Index] {
         // Fan out many small "pizza slices" from the pole to the boundary latitude
         // to avoid polyfill artifacts near the pole and dateline wrapping issues.
-        // Assumptions: vertices define a polar cap-like viewport (e.g., a rectangle)
-        // and are already in radians.
-
-        guard !vertices.isEmpty else { return [] }
-
+        
+        let vertices = [viewport.topLeft, viewport.topRight, viewport.bottomRight, viewport.bottomLeft]
         var allCells = Set<H3Index>()
 
         // Determine which pole and the boundary latitude (closest to equator)
@@ -151,38 +224,97 @@ public enum H3Utils {
         return cells
     }
     
+    /// Determines if a polygon contains either the North or South pole.
+    /// - Parameter vertices: Array of LatLng coordinates defining the polygon boundary in clockwise order
+    /// - Returns: true if the polygon contains either pole, false otherwise
     public static func containsPole(vertices: [LatLng]) -> Bool {
-        guard vertices.count > 2 else { return false }
-
-        let lats = vertices.map { $0.lat }
-        let allPositive = lats.allSatisfy { $0 > 0 }
-        let allNegative = lats.allSatisfy { $0 < 0 }
-
-        if !allPositive && !allNegative {
-            return false // Straddles equator, cannot contain a pole
-        }
-
-        // Check if the polygon defined by the vertices contains a pole.
-        // This can be determined by summing the angles between successive vertices
-        // from the pole's perspective. If the sum is +/- 2*pi, the pole is contained.
-        var angleSum: Double = 0
-        for i in 0..<vertices.count {
-            let p1 = vertices[i]
-            let p2 = vertices[(i + 1) % vertices.count]
+        guard vertices.count >= 3 else { return false }
+        
+        // Check both poles
+        return containsNorthPole(vertices: vertices) || containsSouthPole(vertices: vertices)
+    }
+    
+    /// Determines if a polygon contains the North pole using the winding number algorithm.
+    /// - Parameter vertices: Array of LatLng coordinates defining the polygon boundary in clockwise order
+    /// - Returns: true if the polygon contains the North pole
+    private static func containsNorthPole(vertices: [LatLng]) -> Bool {
+        // Use winding number algorithm adapted for spherical coordinates
+        // The North pole is at latitude π/2 (longitude doesn't matter at pole)
+        
+        // For a point at the pole, we need to check if it's inside the polygon
+        // We'll use a modified ray casting algorithm that works with spherical geometry
+        
+        var windingNumber = 0.0
+        let n = vertices.count
+        
+        for i in 0..<n {
+            let current = vertices[i]
+            let next = vertices[(i + 1) % n]
             
-            var deltaLon = p2.lng - p1.lng
+            // Calculate the longitude difference, handling the dateline crossing
+            let lonDiff = longitudeDifference(from: current.lng, to: next.lng)
             
-            // Adjust for wrapping
-            if deltaLon > .pi {
-                deltaLon -= 2 * .pi
-            } else if deltaLon < -.pi {
-                deltaLon += 2 * .pi
+            // Check if this edge crosses a meridian that passes through the pole
+            // For the North pole, we need to check if the edge crosses above it
+            if current.lat < Double.pi / 2 && next.lat < Double.pi / 2 {
+                // Both points are south of the pole, so this edge can contribute to winding
+                windingNumber += lonDiff / (2 * Double.pi)
             }
-            
-            angleSum += deltaLon
         }
-
-        // If the absolute sum of angles is close to 2*pi, it encloses the pole.
-        return abs(angleSum) > .pi
+        
+        // For clockwise ordering, a positive winding number indicates containment
+        return abs(windingNumber) > 0.5
+    }
+    
+    /// Determines if a polygon contains the South pole using the winding number algorithm.
+    /// - Parameter vertices: Array of LatLng coordinates defining the polygon boundary in clockwise order
+    /// - Returns: true if the polygon contains the South pole
+    private static func containsSouthPole(vertices: [LatLng]) -> Bool {
+        // Similar to North pole but for South pole at latitude -π/2
+        var windingNumber = 0.0
+        let n = vertices.count
+        
+        for i in 0..<n {
+            let current = vertices[i]
+            let next = vertices[(i + 1) % n]
+            
+            // Calculate the longitude difference, handling the dateline crossing
+            let lonDiff = longitudeDifference(from: current.lng, to: next.lng)
+            
+            // Check if this edge crosses a meridian that passes through the pole
+            // For the South pole, we need to check if the edge crosses below it
+            if current.lat > -Double.pi / 2 && next.lat > -Double.pi / 2 {
+                // Both points are north of the South pole, so this edge can contribute to winding
+                windingNumber += lonDiff / (2 * Double.pi)
+            }
+        }
+        
+        // For clockwise ordering, a positive winding number indicates containment
+        return abs(windingNumber) > 0.5
+    }
+    
+    /// Calculates the signed longitude difference between two longitude values,
+    /// taking into account the spherical nature and dateline crossing.
+    /// - Parameters:
+    ///   - fromLng: Starting longitude in radians
+    ///   - toLng: Ending longitude in radians
+    /// - Returns: The signed difference in radians, normalized to [-π, π]
+    private static func longitudeDifference(from fromLng: Double, to toLng: Double) -> Double {
+        var diff = toLng - fromLng
+        
+        // Normalize to [-π, π] range
+        while diff > Double.pi {
+            diff -= 2 * Double.pi
+        }
+        while diff < -Double.pi {
+            diff += 2 * Double.pi
+        }
+        
+        return diff
+    }
+    
+    public static func containsPole(viewport: Viewport) -> Bool {
+        let vertices = [viewport.topLeft, viewport.topRight, viewport.bottomRight, viewport.bottomLeft]
+        return containsPole(vertices: vertices)
     }
 }

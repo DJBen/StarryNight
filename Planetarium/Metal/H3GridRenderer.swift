@@ -59,8 +59,10 @@ final class H3GridRenderer {
 
         // Project viewport corners to world space to find visible H3 cells
         let viewportCorners = [
-            simd_float3(-1, -1, 1), simd_float3(1, -1, 1),
-            simd_float3(1, 1, 1), simd_float3(-1, 1, 1)
+            simd_float3(-1, -1, 1), // Bottom-Left
+            simd_float3(1, -1, 1),  // Bottom-Right
+            simd_float3(1, 1, 1),   // Top-Right
+            simd_float3(-1, 1, 1)   // Top-Left
         ]
         let invMVP = (projectionMatrix * viewMatrix).inverse
         let worldCorners = viewportCorners.map {
@@ -78,7 +80,15 @@ final class H3GridRenderer {
 
         var allLines: [LineInstance] = []
         for res in resolutionsToShow {
-            let cells = H3Utils.h3Cells(inViewport: latLngVertices, resolution: res)
+            let cells = H3Utils.h3Cells(
+                inViewport: Viewport(
+                    topLeft: latLngVertices[3],
+                    topRight: latLngVertices[2],
+                    bottomLeft: latLngVertices[0],
+                    bottomRight: latLngVertices[1]
+                ),
+                resolution: res
+            )
             let lines = gridLines(forCells: cells)
             allLines.append(
                 contentsOf: lines.map { line in
