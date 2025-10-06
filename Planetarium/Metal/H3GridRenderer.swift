@@ -131,7 +131,8 @@ final class H3GridRenderer {
         renderEncoder.setVertexBytes(&colorArray, length: MemoryLayout<SIMD4<Float>>.stride * colorArray.count, index: 6)
         renderEncoder.setVertexBytes(&numColors, length: MemoryLayout<UInt32>.size, index: 7)
 
-        renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: allLines.count)
+        // Use line primitives for clean, thin lines (2 vertices per line)
+        renderEncoder.drawPrimitives(type: .line, vertexStart: 0, vertexCount: 2, instanceCount: allLines.count)
         
         renderEncoder.popDebugGroup()
     }
