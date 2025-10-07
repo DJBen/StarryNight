@@ -9,6 +9,8 @@ final class ConstellationBorderRenderer {
     private struct LineInstance {
         var p0: simd_float3
         var p1: simd_float3
+        var color0: SIMD3<Float>
+        var color1: SIMD3<Float>
     }
 
     private struct BorderEdge: Hashable {
@@ -44,7 +46,7 @@ final class ConstellationBorderRenderer {
     /// Whether borders should be rendered this frame.
     var isVisible: Bool = false
 
-    /// RGBA color applied to all constellation border segments.
+    /// Global tint (RGB) and opacity (A) applied on top of the declination gradient.
     var lineColor: SIMD4<Float> = SIMD4<Float>(0.8, 0.6, 1.0, 0.7)
 
     init(device: MTLDevice, view: MTKView, starManager: any StarManaging) {
@@ -134,9 +136,7 @@ final class ConstellationBorderRenderer {
                 if ConstellationBorderRenderer.isConstantDeclination(segment: segment) {
                     instances.append(contentsOf: segmentsFollowingConstantDeclination(segment: segment))
                 } else {
-                    let worldStart = starToWorldTransform * latLngToCelestialCoord(segment.start)
-                    let worldEnd = starToWorldTransform * latLngToCelestialCoord(segment.end)
-                    instances.append(LineInstance(p0: worldStart, p1: worldEnd))
+                    instances.append(lineInstance(from: segment.start, to: segment.end))
                 }
             }
         }
@@ -165,15 +165,14 @@ final class ConstellationBorderRenderer {
         let subdivisions = max(1, Int(ceil(arcLength / stepSize)))
 
         var segments: [LineInstance] = []
-        var previousVector = starToWorldTransform * latLngToCelestialCoord(segment.start)
+        var previousLatLng = segment.start
 
         for step in 1...subdivisions {
             let t = Double(step) / Double(subdivisions)
             let lng = wrapLongitude(startLng + delta * t)
             let latLng = LatLng(lat: segment.start.lat, lng: lng)
-            let currentVector = starToWorldTransform * latLngToCelestialCoord(latLng)
-            segments.append(LineInstance(p0: previousVector, p1: currentVector))
-            previousVector = currentVector
+            segments.append(lineInstance(from: previousLatLng, to: latLng))
+            previousLatLng = latLng
         }
 
         return segments
@@ -193,6 +192,23 @@ final class ConstellationBorderRenderer {
             lon -= twoPi
         }
         return lon
+    }
+
+    private static func lineInstance(from start: LatLng, to end: LatLng) -> LineInstance {
+        return LineInstance(
+            p0: starToWorldTransform * latLngToCelestialCoord(start),
+            p1: starToWorldTransform * latLngToCelestialCoord(end),
+            color0: gradientColor(forDeclination: start.lat),
+            color1: gradientColor(forDeclination: end.lat)
+        )
+    }
+
+    private static func gradientColor(forDeclination declination: Double) -> SIMD3<Float> {
+        let normalized = Float((declination + Double.pi / 2.0) / Double.pi)
+        let clamped = max(0.0, min(1.0, normalized))
+        let southernColor = SIMD3<Float>(0.2, 0.4, 1.0)
+        let northernColor = SIMD3<Float>(1.0, 0.5, 0.2)
+        return southernColor + (northernColor - southernColor) * clamped
     }
 
     private static func buildPipeline(device: MTLDevice, view: MTKView) throws -> MTLRenderPipelineState {

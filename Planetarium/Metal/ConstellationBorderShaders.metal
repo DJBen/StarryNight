@@ -16,6 +16,8 @@ struct ConstellationBorderVertexOut {
 struct ConstellationBorderInstance {
     float3 p0;
     float3 p1;
+    float3 color0;
+    float3 color1;
 };
 
 vertex ConstellationBorderVertexOut constellation_border_vertex(
@@ -28,9 +30,11 @@ vertex ConstellationBorderVertexOut constellation_border_vertex(
 
     const ConstellationBorderInstance segment = segments[iid];
     const float3 position = (vid == 0) ? segment.p0 : segment.p1;
+    const float3 gradientColor = (vid == 0) ? segment.color0 : segment.color1;
+    const float3 tintedColor = gradientColor * uniforms.color.rgb;
 
     out.position = uniforms.projectionMatrix * (uniforms.modelViewMatrix * float4(position, 1.0));
-    out.color = uniforms.color;
+    out.color = float4(tintedColor, uniforms.color.a);
 
     return out;
 }
