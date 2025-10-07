@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Ch3
 
 public struct Constellation: Hashable, Identifiable, @unchecked Sendable {
     public struct Line: CustomStringConvertible, Sendable {
@@ -20,6 +21,21 @@ public struct Constellation: Hashable, Identifiable, @unchecked Sendable {
         public init(star1: Star, star2: Star) {
             self.star1 = star1
             self.star2 = star2
+        }
+    }
+
+    public struct BorderSegment: Hashable, Sendable {
+        /// Start of the border segment in equatorial coordinates (Dec, RA) in radians.
+        public let start: LatLng
+        /// End of the border segment in equatorial coordinates (Dec, RA) in radians.
+        public let end: LatLng
+        /// Opposite side constellation IAU abbreviation, if the dataset specifies one.
+        public let oppositeConstellationIAU: String?
+
+        public init(start: LatLng, end: LatLng, oppositeConstellationIAU: String?) {
+            self.start = start
+            self.end = end
+            self.oppositeConstellationIAU = oppositeConstellationIAU
         }
     }
 

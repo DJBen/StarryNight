@@ -82,4 +82,28 @@ final class ConstellationTest: XCTestCase {
         XCTAssertGreaterThan(constellationsWithLines, 0, "At least some constellations should have connection lines")
     }
     
+    func testConstellationBordersFetch() throws {
+        guard let andromeda = starManager.constellation(iau: "And") else {
+            XCTFail("Could not find Andromeda constellation in DB")
+            return
+        }
+
+        let borders = starManager.constellationBorders(for: andromeda)
+        XCTAssertFalse(borders.isEmpty, "Andromeda should have border segments")
+
+        for segment in borders {
+            XCTAssertTrue(segment.start.lat.isFinite && segment.start.lng.isFinite, "Start coordinate should be finite")
+            XCTAssertTrue(segment.end.lat.isFinite && segment.end.lng.isFinite, "End coordinate should be finite")
+            XCTAssertLessThanOrEqual(abs(segment.start.lat), .pi / 2.0 + 1e-9, "Start declination should be within bounds")
+            XCTAssertLessThanOrEqual(abs(segment.end.lat), .pi / 2.0 + 1e-9, "End declination should be within bounds")
+            XCTAssertLessThanOrEqual(abs(segment.start.lng), .pi + 1e-9, "Start right ascension should be normalized")
+            XCTAssertLessThanOrEqual(abs(segment.end.lng), .pi + 1e-9, "End right ascension should be normalized")
+        }
+
+        if let serpent = starManager.constellation(iau: "Ser1") {
+            let serpentBorders = starManager.constellationBorders(for: serpent)
+            XCTAssertFalse(serpentBorders.isEmpty, "Serpens Caput should expose borders")
+        }
+    }
+
 }

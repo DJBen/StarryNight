@@ -7,9 +7,15 @@
 //
 
 import Foundation
-import SQLite
+@preconcurrency import SQLite
 
 public struct SpectralType: CustomStringConvertible {
+    enum Spectral {
+        static let table = Table("spectral")
+        static let spectralType = Expression<String>("SpT")
+        static let temp = Expression<Double>("Teff")
+    }
+
     public let rawType: String
     public var description: String {
         return rawType
@@ -37,13 +43,13 @@ public struct SpectralType: CustomStringConvertible {
         let fractionSubtype = "\(type)\(String(format: "%.1f", subType))%"
         let integerSubtype = "\(type)\(String(Int(subType)))%"
         if let row = try? StarryNight.db.pluck(
-            StarryNight.Spectral.table.select(StarryNight.Spectral.temp).where(StarryNight.Spectral.spectralType.like(fractionSubtype))
+            Spectral.table.select(Spectral.temp).where(Spectral.spectralType.like(fractionSubtype))
         ) {
-            return row[StarryNight.Spectral.temp] + 273.15
+            return row[Spectral.temp] + 273.15
         } else if let row = try? StarryNight.db.pluck(
-            StarryNight.Spectral.table.select(StarryNight.Spectral.temp).where(StarryNight.Spectral.spectralType.like(integerSubtype))
+            Spectral.table.select(Spectral.temp).where(Spectral.spectralType.like(integerSubtype))
         ) {
-            return row[StarryNight.Spectral.temp] + 273.15
+            return row[Spectral.temp] + 273.15
         }
         // This is rare but may happen
         return 0

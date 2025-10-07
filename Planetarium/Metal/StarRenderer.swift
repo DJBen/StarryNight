@@ -101,6 +101,7 @@ final class StarRenderer {
                 // Fetch data for cells not in cache
                 for cell in newCells {
                     if h3StarCache[cell] == nil {
+                        print("Load cell \(String(format: "%llx", cell))")
                         let stars = starManager.stars(inH3Cell: cell, maximumMagnitude: nil)
                         h3StarCache[cell] = stars.map { StarRenderer.starToInstance($0) }
                     }

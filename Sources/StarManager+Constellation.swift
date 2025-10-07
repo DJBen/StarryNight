@@ -1,4 +1,5 @@
 import Foundation
+import Ch3
 @preconcurrency import SQLite
 
 extension StarManager {
@@ -51,7 +52,7 @@ extension StarManager {
         
         return queryConstellation(query)
     }
-    
+
     /// Get constellation connection lines from the constellation_lines table
     public func constellationLines(for constellation: Constellation) -> [Constellation.Line] {
         // Query the constellation_lines table for this constellation's id
@@ -74,7 +75,76 @@ extension StarManager {
         }
         return connectionLines
     }
-    
+
+    /// Get border segments that outline the provided constellation
+    public func constellationBorders(for constellation: Constellation) -> [Constellation.BorderSegment] {
+        let bordersTable = Table("constellation_borders")
+        let dbCon = Expression<String>("con")
+        let dbOppositeCon = Expression<String?>("opposite_con")
+        let dbP1RA = Expression<Double>("p1_ra")
+        let dbP1Dec = Expression<Double>("p1_dec")
+        let dbP2RA = Expression<Double>("p2_ra")
+        let dbP2Dec = Expression<Double>("p2_dec")
+
+        var segments: [Constellation.BorderSegment] = []
+
+        do {
+            let iauNames: [String]
+            if constellation.iAUName == "Ser" {
+                iauNames = ["Ser1", "Ser2"]
+            } else {
+                iauNames = [constellation.iAUName]
+            }
+
+            var query = bordersTable
+            if let firstIAU = iauNames.first {
+                var predicate = dbCon == firstIAU
+                for iau in iauNames.dropFirst() {
+                    predicate = predicate || dbCon == iau
+                }
+                query = query.filter(predicate)
+            }
+
+            for row in try db.prepare(query) {
+                let startRA = try row.get(dbP1RA)
+                let startDec = try row.get(dbP1Dec)
+                let endRA = try row.get(dbP2RA)
+                let endDec = try row.get(dbP2Dec)
+                let startCoordinate = raDecToLatLng(raHours: startRA, decDegrees: startDec)
+                let endCoordinate = raDecToLatLng(raHours: endRA, decDegrees: endDec)
+
+                let segment = Constellation.BorderSegment(
+                    start: startCoordinate,
+                    end: endCoordinate,
+                    oppositeConstellationIAU: try row.get(dbOppositeCon)
+                )
+                segments.append(segment)
+            }
+        } catch {
+            print("Error fetching borders for constellation \(constellation.iAUName): \(error)")
+        }
+
+        return segments
+    }
+
+    private func raDecToLatLng(raHours: Double, decDegrees: Double) -> LatLng {
+        let raRadians = raHours * .pi / 12.0
+        let decRadians = decDegrees * .pi / 180.0
+        return LatLng(lat: decRadians, lng: normalizeLongitude(raRadians))
+    }
+
+    private func normalizeLongitude(_ longitude: Double) -> Double {
+        var lon = longitude
+        let twoPi = 2.0 * .pi
+        lon.formTruncatingRemainder(dividingBy: twoPi)
+        if lon <= -.pi {
+            lon += twoPi
+        } else if lon > .pi {
+            lon -= twoPi
+        }
+        return lon
+    }
+
     /// Get neighboring constellations for a given constellation
     public func neighbors(for constellation: Constellation) -> Set<Constellation> {
         // Define the constellation borders table structure

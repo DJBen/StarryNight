@@ -22,6 +22,7 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     // MARK: - UserDefaults Keys
     private struct UserDefaultsKeys {
         static let isH3GridVisible = "MetalViewController.isH3GridVisible"
+        static let areConstellationBordersVisible = "MetalViewController.areConstellationBordersVisible"
         static let isDebugViewportVisible = "MetalViewController.isDebugViewportVisible"
         static let isDebugFormatRadians = "MetalViewController.isDebugFormatRadians"
     }
@@ -267,6 +268,7 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         #if os(iOS) || os(tvOS)
         let isGridOn = renderer?.isH3GridVisible ?? true
         let isDebugOn = renderer?.isDebugViewportVisible ?? false
+        let areBordersVisible = renderer?.areConstellationBordersVisible ?? false
         let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
         
         let gridToggleTitle = isGridOn ? "Hide H3 Grid" : "Show H3 Grid"
@@ -275,6 +277,13 @@ class MetalViewController: PlatformViewController, StarTapDelegate
             renderer.isH3GridVisible.toggle()
             // Persist the setting
             UserDefaults.standard.set(renderer.isH3GridVisible, forKey: UserDefaultsKeys.isH3GridVisible)
+        }))
+
+        let bordersToggleTitle = areBordersVisible ? "Hide Constellation Borders" : "Show Constellation Borders"
+        sheet.addAction(UIAlertAction(title: bordersToggleTitle, style: .default, handler: { [weak self] _ in
+            guard let self = self, let renderer = self.renderer else { return }
+            renderer.areConstellationBordersVisible.toggle()
+            UserDefaults.standard.set(renderer.areConstellationBordersVisible, forKey: UserDefaultsKeys.areConstellationBordersVisible)
         }))
         
         let debugToggleTitle = isDebugOn ? "Hide Debug Viewport" : "Show Debug Viewport"
@@ -555,7 +564,15 @@ class MetalViewController: PlatformViewController, StarTapDelegate
             renderer.isH3GridVisible = false
             UserDefaults.standard.set(false, forKey: UserDefaultsKeys.isH3GridVisible)
         }
-        
+
+        // Restore constellation border visibility (default to false if not set)
+        if UserDefaults.standard.object(forKey: UserDefaultsKeys.areConstellationBordersVisible) != nil {
+            renderer.areConstellationBordersVisible = UserDefaults.standard.bool(forKey: UserDefaultsKeys.areConstellationBordersVisible)
+        } else {
+            renderer.areConstellationBordersVisible = false
+            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.areConstellationBordersVisible)
+        }
+
         // Restore Debug Viewport visibility (default to false if not set)
         if UserDefaults.standard.object(forKey: UserDefaultsKeys.isDebugViewportVisible) != nil {
             renderer.isDebugViewportVisible = UserDefaults.standard.bool(forKey: UserDefaultsKeys.isDebugViewportVisible)

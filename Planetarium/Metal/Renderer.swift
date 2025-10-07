@@ -50,6 +50,7 @@ class Renderer: NSObject, MTKViewDelegate {
     // Sub-renderers
     private let skyboxRenderer: SkyboxRenderer
     private let starRenderer: StarRenderer
+    private let constellationBorderRenderer: ConstellationBorderRenderer
     private let h3GridRenderer: H3GridRenderer
     private let crosshairRenderer: CrosshairRenderer
     private let triangleIndicatorRenderer: TriangleIndicatorRenderer
@@ -98,6 +99,7 @@ class Renderer: NSObject, MTKViewDelegate {
         // Initialize sub-renderers
         self.skyboxRenderer = SkyboxRenderer(device: self.device, view: metalKitView)
         self.starRenderer = StarRenderer(device: self.device, view: metalKitView, starManager: starManager)
+        self.constellationBorderRenderer = ConstellationBorderRenderer(device: self.device, view: metalKitView, starManager: starManager)
         self.h3GridRenderer = H3GridRenderer(device: self.device, view: metalKitView)
         self.crosshairRenderer = CrosshairRenderer(device: self.device, view: metalKitView)
         self.triangleIndicatorRenderer = TriangleIndicatorRenderer(device: self.device, view: metalKitView)
@@ -158,6 +160,11 @@ class Renderer: NSObject, MTKViewDelegate {
     public var isH3GridVisible: Bool {
         get { h3GridRenderer.isVisible }
         set { h3GridRenderer.isVisible = newValue }
+    }
+
+    public var areConstellationBordersVisible: Bool {
+        get { constellationBorderRenderer.isVisible }
+        set { constellationBorderRenderer.isVisible = newValue }
     }
     
     // MARK: - Debug viewport control
@@ -267,6 +274,11 @@ class Renderer: NSObject, MTKViewDelegate {
                     time: starTime,
                     fov: camera.currentFOV
                 )
+                constellationBorderRenderer.draw(
+                    renderEncoder: renderEncoder,
+                    projectionMatrix: projectionMatrix,
+                    viewMatrix: viewMatrix
+                )
                 
                 // Draw crosshair for selected star (on top)
                 crosshairRenderer.draw(
@@ -302,6 +314,7 @@ class Renderer: NSObject, MTKViewDelegate {
         // Update camera's aspect ratio
         camera.updateAspectRatio(aspect)
         h3GridRenderer.drawableSizeWillChange(to: size)
+        constellationBorderRenderer.drawableSizeWillChange(to: size)
     }
 }
 
