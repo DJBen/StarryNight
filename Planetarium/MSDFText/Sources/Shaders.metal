@@ -34,6 +34,7 @@ typedef struct {
 typedef struct {
     float4 position [[position]];
     float2 texCoord;
+    float2 ndc;
 } Varyings;
 
 vertex Varyings msdfVertexShader(Vertex in                 [[stage_in]],
@@ -41,8 +42,11 @@ vertex Varyings msdfVertexShader(Vertex in                 [[stage_in]],
 {
     Varyings out;
     float4 pos = float4(in.position, 1.0);
-    out.position = uni.projectionMatrix * uni.modelViewMatrix * pos;
+    float4 clip = uni.projectionMatrix * uni.modelViewMatrix * pos;
+    out.position = clip;
     out.texCoord = in.texCoord;
+    float invW = 1.0f / clip.w;
+    out.ndc = clip.xy * invW;
     return out;
 }
 
@@ -59,6 +63,8 @@ fragment float4 msdfFragmentShader(Varyings in               [[stage_in]],
     float screenPxDistance = screenPxRange * (msdf - 0.5f);
     float alphaFill = clamp(screenPxDistance + 0.5f, 0.0f, 1.0f);
     float4 color = uni.textColor;
-    color.a *= alphaFill;
+    float distanceToCenter = clamp(length(in.ndc), 0.0f, 1.0f);
+    float viewFade = clamp(1.0f - distanceToCenter, 0.0f, 1.0f);
+    color.a *= alphaFill * viewFade;
     return color;
 }

@@ -15,11 +15,6 @@ import UIKit
 
 /// Renders constellation name labels at their display centers using MSDF text.
 final class ConstellationLabelRenderer {
-    enum Error: Swift.Error {
-        case fontNotFound
-        case failedToLoadFont(URL)
-        case failedToRegisterFont
-    }
 
     private struct LabelEntry {
         let mesh: MSDFTextMesh
@@ -48,7 +43,7 @@ final class ConstellationLabelRenderer {
         device: MTLDevice,
         view: MTKView,
         starManager: any StarManaging
-    ) throws(ConstellationLabelRenderer.Error) {
+    ) {
         self.device = device
         self.drawableSize = view.drawableSize
         self.contentScale = ConstellationLabelRenderer.computeContentScale(for: view)
@@ -83,7 +78,10 @@ final class ConstellationLabelRenderer {
         }
         atlasUnitRange = msdfRenderer.unitRange(for: atlasTexture)
 
-        let ctFont = try ConstellationLabelRenderer.makeFont(size: 14)
+        guard let ctFont = ConstellationLabelRenderer.makeFont(size: 14) else {
+            print("ConstellationLabelRenderer: Could not create SF Pro Display font.")
+            return nil
+        }
         let meshBuilder = MSDFTextMeshBuilder(device: device, atlas: atlas, font: ctFont)
         buildLabels(
             builder: meshBuilder,
@@ -241,17 +239,17 @@ final class ConstellationLabelRenderer {
         return try textureLoader.newTexture(URL: url, options: options)
     }
 
-    private static func makeFont(size: CGFloat) throws(ConstellationLabelRenderer.Error) -> CTFont {
+    private static func makeFont(size: CGFloat) -> CTFont? {
         guard let fontURL = Bundle.main.url(forResource: "SF-Pro-Display-Regular", withExtension: "otf") else {
             print("ConstellationLabelRenderer: SF-Pro-Display-Regular.otf not found in bundle.")
-            throw Error.fontNotFound
+            return nil
         }
 
         guard let dataProvider = CGDataProvider(url: fontURL as CFURL),
               let cgFont = CGFont(dataProvider)
         else {
             print("ConstellationLabelRenderer: Failed to load font data from \(fontURL).")
-            throw Error.failedToLoadFont(fontURL)
+            return nil
         }
 
         var error: Unmanaged<CFError>?
@@ -261,7 +259,8 @@ final class ConstellationLabelRenderer {
                 if let ctError = CTFontManagerError(rawValue: code), ctError == .alreadyRegistered {
                     // Font already registered; nothing to do.
                 } else {
-                    throw Error.failedToRegisterFont
+                    print("ConstellationLabelRenderer: Font registration failed with error: \(cfError)")
+                    return nil
                 }
             }
         }
