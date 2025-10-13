@@ -52,6 +52,7 @@ class Renderer: NSObject, MTKViewDelegate {
     private let starRenderer: StarRenderer
     private let constellationLineRenderer: ConstellationLineRenderer
     private let constellationBorderRenderer: ConstellationBorderRenderer
+    private let constellationLabelRenderer: ConstellationLabelRenderer?
     private let h3GridRenderer: H3GridRenderer
     private let crosshairRenderer: CrosshairRenderer
     private let triangleIndicatorRenderer: TriangleIndicatorRenderer
@@ -81,7 +82,7 @@ class Renderer: NSObject, MTKViewDelegate {
     init?(
         metalKitView: MTKView,
         starManager: any StarManaging
-    ) {
+    ) throws {
         self.starManager = starManager
         self.device = metalKitView.device!
 
@@ -102,6 +103,7 @@ class Renderer: NSObject, MTKViewDelegate {
         self.starRenderer = StarRenderer(device: self.device, view: metalKitView, starManager: starManager)
         self.constellationLineRenderer = ConstellationLineRenderer(device: self.device, view: metalKitView, starManager: starManager)
         self.constellationBorderRenderer = ConstellationBorderRenderer(device: self.device, view: metalKitView, starManager: starManager)
+        self.constellationLabelRenderer = try ConstellationLabelRenderer(device: self.device, view: metalKitView, starManager: starManager)
         self.h3GridRenderer = H3GridRenderer(device: self.device, view: metalKitView)
         self.crosshairRenderer = CrosshairRenderer(device: self.device, view: metalKitView)
         self.triangleIndicatorRenderer = TriangleIndicatorRenderer(device: self.device, view: metalKitView)
@@ -172,6 +174,11 @@ class Renderer: NSObject, MTKViewDelegate {
     public var areConstellationLinesVisible: Bool {
         get { constellationLineRenderer.isVisible }
         set { constellationLineRenderer.isVisible = newValue }
+    }
+    
+    public var areConstellationLabelsVisible: Bool {
+        get { constellationLabelRenderer?.isVisible ?? false }
+        set { constellationLabelRenderer?.isVisible = newValue }
     }
     
     // MARK: - Debug viewport control
@@ -290,6 +297,11 @@ class Renderer: NSObject, MTKViewDelegate {
                     projectionMatrix: projectionMatrix,
                     viewMatrix: viewMatrix
                 )
+                constellationLabelRenderer?.draw(
+                    renderEncoder: renderEncoder,
+                    projectionMatrix: projectionMatrix,
+                    viewMatrix: viewMatrix
+                )
                 
                 // Draw crosshair for selected star (on top)
                 crosshairRenderer.draw(
@@ -327,6 +339,7 @@ class Renderer: NSObject, MTKViewDelegate {
         h3GridRenderer.drawableSizeWillChange(to: size)
         constellationLineRenderer.drawableSizeWillChange(to: size)
         constellationBorderRenderer.drawableSizeWillChange(to: size)
+        constellationLabelRenderer?.drawableSizeWillChange(to: size)
     }
 }
 

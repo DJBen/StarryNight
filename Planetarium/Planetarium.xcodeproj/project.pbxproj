@@ -8,6 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		FC4FD9112E48499B007B15BD /* StarryNight in Frameworks */ = {isa = PBXBuildFile; productRef = FC4FD9102E48499B007B15BD /* StarryNight */; };
+		FC950C912E9C7984004099E8 /* MSDFText in Frameworks */ = {isa = PBXBuildFile; productRef = FC950C902E9C7984004099E8 /* MSDFText */; };
+		FC950C952E9C7EFE004099E8 /* SF-Pro-Display_mtsdf.json in Resources */ = {isa = PBXBuildFile; fileRef = FC950C922E9C7EFE004099E8 /* SF-Pro-Display_mtsdf.json */; };
+		FC950C962E9C7EFE004099E8 /* SF-Pro-Display_mtsdf.png in Resources */ = {isa = PBXBuildFile; fileRef = FC950C932E9C7EFE004099E8 /* SF-Pro-Display_mtsdf.png */; };
+		FC950C9A2E9CAC7A004099E8 /* SF-Pro-Display-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = FC950C992E9CAC7A004099E8 /* SF-Pro-Display-Regular.otf */; };
 		FCE4F6D42E5F73CA009C3536 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE4F6C72E5F73CA009C3536 /* AppDelegate.swift */; };
 		FCE4F6DC2E5F73CA009C3536 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = FCE4F6CA2E5F73CA009C3536 /* LaunchScreen.storyboard */; };
 		FCE4F6DD2E5F73CA009C3536 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FCE4F6C82E5F73CA009C3536 /* Assets.xcassets */; };
@@ -16,6 +20,9 @@
 
 /* Begin PBXFileReference section */
 		FC2930632E4061A300F838D9 /* Planetarium.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Planetarium.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC950C922E9C7EFE004099E8 /* SF-Pro-Display_mtsdf.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "SF-Pro-Display_mtsdf.json"; sourceTree = "<group>"; };
+		FC950C932E9C7EFE004099E8 /* SF-Pro-Display_mtsdf.png */ = {isa = PBXFileReference; explicitFileType = compiled; path = "SF-Pro-Display_mtsdf.png"; sourceTree = "<group>"; };
+		FC950C992E9CAC7A004099E8 /* SF-Pro-Display-Regular.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SF-Pro-Display-Regular.otf"; sourceTree = "<group>"; };
 		FCE4F6C72E5F73CA009C3536 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		FCE4F6C82E5F73CA009C3536 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FCE4F6D02E5F73CA009C3536 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -37,6 +44,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FC4FD9112E48499B007B15BD /* StarryNight in Frameworks */,
+				FC950C912E9C7984004099E8 /* MSDFText in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -46,6 +54,7 @@
 		FC29305A2E4061A300F838D9 = {
 			isa = PBXGroup;
 			children = (
+				FC950C942E9C7EFE004099E8 /* Resources */,
 				FCE4F6E52E5F74AF009C3536 /* Metal */,
 				FCE4F6C72E5F73CA009C3536 /* AppDelegate.swift */,
 				FCEAE53D2E677AF7002EBE6A /* SceneDelegate.swift */,
@@ -62,6 +71,16 @@
 				FC2930632E4061A300F838D9 /* Planetarium.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		FC950C942E9C7EFE004099E8 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				FC950C922E9C7EFE004099E8 /* SF-Pro-Display_mtsdf.json */,
+				FC950C932E9C7EFE004099E8 /* SF-Pro-Display_mtsdf.png */,
+				FC950C992E9CAC7A004099E8 /* SF-Pro-Display-Regular.otf */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -85,6 +104,7 @@
 			name = Planetarium;
 			packageProductDependencies = (
 				FC4FD9102E48499B007B15BD /* StarryNight */,
+				FC950C902E9C7984004099E8 /* MSDFText */,
 			);
 			productName = Planetarium;
 			productReference = FC2930632E4061A300F838D9 /* Planetarium.app */;
@@ -116,6 +136,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				FC4FD90F2E48499B007B15BD /* XCLocalSwiftPackageReference "../../StarryNight" */,
+				FC950C8F2E9C7984004099E8 /* XCLocalSwiftPackageReference "MSDFText" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FC2930642E4061A300F838D9 /* Products */;
@@ -133,6 +154,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				FCE4F6DC2E5F73CA009C3536 /* LaunchScreen.storyboard in Resources */,
+				FC950C952E9C7EFE004099E8 /* SF-Pro-Display_mtsdf.json in Resources */,
+				FC950C962E9C7EFE004099E8 /* SF-Pro-Display_mtsdf.png in Resources */,
+				FC950C9A2E9CAC7A004099E8 /* SF-Pro-Display-Regular.otf in Resources */,
 				FCE4F6DD2E5F73CA009C3536 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -362,12 +386,20 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../StarryNight;
 		};
+		FC950C8F2E9C7984004099E8 /* XCLocalSwiftPackageReference "MSDFText" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = MSDFText;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		FC4FD9102E48499B007B15BD /* StarryNight */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = StarryNight;
+		};
+		FC950C902E9C7984004099E8 /* MSDFText */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MSDFText;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
