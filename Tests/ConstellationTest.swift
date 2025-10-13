@@ -46,7 +46,9 @@ final class ConstellationTest: XCTestCase {
         let lines = starManager.constellationLines(for: orion)
         XCTAssertFalse(lines.isEmpty, "Orion should have constellation lines")
         for line in lines {
-            XCTAssertNotEqual(line.star1.id, line.star2.id, "Line endpoints should not be the same star")
+            XCTAssertNotEqual(line.star1Id, line.star2Id, "Line endpoints should not be the same star")
+            XCTAssertNotNil(starManager.star(withId: line.star1Id), "Line should reference a valid star1 ID")
+            XCTAssertNotNil(starManager.star(withId: line.star2Id), "Line should reference a valid star2 ID")
         }
     }
 
@@ -63,9 +65,13 @@ final class ConstellationTest: XCTestCase {
             
             // Verify that connection lines have valid stars
             for line in orionLines {
-                XCTAssertNotNil(line.star1, "Connection line should have valid star1")
-                XCTAssertNotNil(line.star2, "Connection line should have valid star2")
-                XCTAssertNotEqual(line.star1.id, line.star2.id, "Connection line should connect different stars")
+                let star1 = starManager.star(withId: line.star1Id)
+                let star2 = starManager.star(withId: line.star2Id)
+                XCTAssertNotNil(star1, "Connection line should have valid star1 ID")
+                XCTAssertNotNil(star2, "Connection line should have valid star2 ID")
+                if let star1, let star2 {
+                    XCTAssertNotEqual(star1.id, star2.id, "Connection line should connect different stars")
+                }
             }
         } else {
             XCTFail("Should be able to find Orion constellation")

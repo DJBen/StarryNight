@@ -66,9 +66,7 @@ extension StarManager {
             for row in try db.prepare(linesTable.filter(dbConstellationId == constellation.id)) {
                 let star1Id = try row.get(dbStar1Id)
                 let star2Id = try row.get(dbStar2Id)
-                if let star1 = star(withId: star1Id), let star2 = star(withId: star2Id) {
-                    connectionLines.append(Constellation.Line(star1: star1, star2: star2))
-                }
+                connectionLines.append(Constellation.Line(star1Id: star1Id, star2Id: star2Id))
             }
         } catch {
             print("Error fetching constellation lines for \(constellation.iAUName): \(error)")

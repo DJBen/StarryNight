@@ -50,6 +50,7 @@ class Renderer: NSObject, MTKViewDelegate {
     // Sub-renderers
     private let skyboxRenderer: SkyboxRenderer
     private let starRenderer: StarRenderer
+    private let constellationLineRenderer: ConstellationLineRenderer
     private let constellationBorderRenderer: ConstellationBorderRenderer
     private let h3GridRenderer: H3GridRenderer
     private let crosshairRenderer: CrosshairRenderer
@@ -99,6 +100,7 @@ class Renderer: NSObject, MTKViewDelegate {
         // Initialize sub-renderers
         self.skyboxRenderer = SkyboxRenderer(device: self.device, view: metalKitView)
         self.starRenderer = StarRenderer(device: self.device, view: metalKitView, starManager: starManager)
+        self.constellationLineRenderer = ConstellationLineRenderer(device: self.device, view: metalKitView, starManager: starManager)
         self.constellationBorderRenderer = ConstellationBorderRenderer(device: self.device, view: metalKitView, starManager: starManager)
         self.h3GridRenderer = H3GridRenderer(device: self.device, view: metalKitView)
         self.crosshairRenderer = CrosshairRenderer(device: self.device, view: metalKitView)
@@ -166,6 +168,11 @@ class Renderer: NSObject, MTKViewDelegate {
         get { constellationBorderRenderer.isVisible }
         set { constellationBorderRenderer.isVisible = newValue }
     }
+
+    public var areConstellationLinesVisible: Bool {
+        get { constellationLineRenderer.isVisible }
+        set { constellationLineRenderer.isVisible = newValue }
+    }
     
     // MARK: - Debug viewport control
     
@@ -223,9 +230,7 @@ class Renderer: NSObject, MTKViewDelegate {
         }
 
         if let commandBuffer = commandQueue.makeCommandBuffer() {
-
-            let semaphore = inFlightSemaphore
-            commandBuffer.addCompletedHandler { _ in
+            commandBuffer.addCompletedHandler { [semaphore = inFlightSemaphore] _ in
                 semaphore.signal()
             }
 
@@ -274,6 +279,12 @@ class Renderer: NSObject, MTKViewDelegate {
                     time: starTime,
                     fov: camera.currentFOV
                 )
+                constellationLineRenderer.draw(
+                    renderEncoder: renderEncoder,
+                    projectionMatrix: projectionMatrix,
+                    viewMatrix: viewMatrix,
+                    fovDegrees: camera.currentFOV
+                )
                 constellationBorderRenderer.draw(
                     renderEncoder: renderEncoder,
                     projectionMatrix: projectionMatrix,
@@ -314,6 +325,7 @@ class Renderer: NSObject, MTKViewDelegate {
         // Update camera's aspect ratio
         camera.updateAspectRatio(aspect)
         h3GridRenderer.drawableSizeWillChange(to: size)
+        constellationLineRenderer.drawableSizeWillChange(to: size)
         constellationBorderRenderer.drawableSizeWillChange(to: size)
     }
 }

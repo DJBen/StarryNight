@@ -23,6 +23,7 @@ class MetalViewController: PlatformViewController, StarTapDelegate
     private struct UserDefaultsKeys {
         static let isH3GridVisible = "MetalViewController.isH3GridVisible"
         static let areConstellationBordersVisible = "MetalViewController.areConstellationBordersVisible"
+        static let areConstellationLinesVisible = "MetalViewController.areConstellationLinesVisible"
         static let isDebugViewportVisible = "MetalViewController.isDebugViewportVisible"
         static let isDebugFormatRadians = "MetalViewController.isDebugFormatRadians"
     }
@@ -269,6 +270,7 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         let isGridOn = renderer?.isH3GridVisible ?? true
         let isDebugOn = renderer?.isDebugViewportVisible ?? false
         let areBordersVisible = renderer?.areConstellationBordersVisible ?? false
+        let areLinesVisible = renderer?.areConstellationLinesVisible ?? false
         let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
         
         let gridToggleTitle = isGridOn ? "Hide H3 Grid" : "Show H3 Grid"
@@ -277,6 +279,13 @@ class MetalViewController: PlatformViewController, StarTapDelegate
             renderer.isH3GridVisible.toggle()
             // Persist the setting
             UserDefaults.standard.set(renderer.isH3GridVisible, forKey: UserDefaultsKeys.isH3GridVisible)
+        }))
+
+        let linesToggleTitle = areLinesVisible ? "Hide Constellation Lines" : "Show Constellation Lines"
+        sheet.addAction(UIAlertAction(title: linesToggleTitle, style: .default, handler: { [weak self] _ in
+            guard let self = self, let renderer = self.renderer else { return }
+            renderer.areConstellationLinesVisible.toggle()
+            UserDefaults.standard.set(renderer.areConstellationLinesVisible, forKey: UserDefaultsKeys.areConstellationLinesVisible)
         }))
 
         let bordersToggleTitle = areBordersVisible ? "Hide Constellation Borders" : "Show Constellation Borders"
@@ -571,6 +580,14 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         } else {
             renderer.areConstellationBordersVisible = false
             UserDefaults.standard.set(false, forKey: UserDefaultsKeys.areConstellationBordersVisible)
+        }
+
+        // Restore constellation line visibility (default to false if not set)
+        if UserDefaults.standard.object(forKey: UserDefaultsKeys.areConstellationLinesVisible) != nil {
+            renderer.areConstellationLinesVisible = UserDefaults.standard.bool(forKey: UserDefaultsKeys.areConstellationLinesVisible)
+        } else {
+            renderer.areConstellationLinesVisible = false
+            UserDefaults.standard.set(false, forKey: UserDefaultsKeys.areConstellationLinesVisible)
         }
 
         // Restore Debug Viewport visibility (default to false if not set)

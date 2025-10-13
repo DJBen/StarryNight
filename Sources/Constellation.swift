@@ -11,16 +11,16 @@ import Ch3
 
 public struct Constellation: Hashable, Identifiable, @unchecked Sendable {
     public struct Line: CustomStringConvertible, Sendable {
-        public let star1: Star
-        public let star2: Star
+        public let star1Id: Int
+        public let star2Id: Int
 
         public var description: String {
-            return "(\(star1) - \(star2))"
+            "(\(star1Id) - \(star2Id))"
         }
-        
-        public init(star1: Star, star2: Star) {
-            self.star1 = star1
-            self.star2 = star2
+
+        public init(star1Id: Int, star2Id: Int) {
+            self.star1Id = star1Id
+            self.star2Id = star2Id
         }
     }
 
