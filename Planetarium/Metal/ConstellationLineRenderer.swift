@@ -7,7 +7,9 @@ import StarryNight
 /// Renders constellation connection lines that link stars belonging to the same constellation.
 final class ConstellationLineRenderer {
     private struct LineVertex {
-        var positionAlpha: simd_float4
+        var position: simd_float3
+        var lineStart: simd_float3
+        var lineEnd: simd_float3
     }
 
     private struct StarEdge: Hashable {
@@ -29,9 +31,11 @@ final class ConstellationLineRenderer {
     private let device: MTLDevice
     private let pipelineState: MTLRenderPipelineState
     private let depthState: MTLDepthStencilState
+    private weak var view: MTKView?
 
     private var lineBuffer: MTLBuffer?
     private var vertexCount: Int = 0
+    private var viewportSizePoints: SIMD2<Float> = SIMD2<Float>(1, 1)
 
     /// Whether constellation lines should be rendered this frame.
     var isVisible: Bool = false
@@ -50,6 +54,8 @@ final class ConstellationLineRenderer {
     init(device: MTLDevice, view: MTKView, starManager: any StarManaging) throws {
         self.device = device
         self.pipelineState = try ConstellationLineRenderer.buildPipeline(device: device, view: view)
+        self.view = view
+        self.viewportSizePoints = SIMD2<Float>(Float(view.drawableSize.width), Float(view.drawableSize.height))
 
         let depthDescriptor = MTLDepthStencilDescriptor()
         depthDescriptor.depthCompareFunction = .lessEqual
@@ -63,8 +69,7 @@ final class ConstellationLineRenderer {
     }
 
     func drawableSizeWillChange(to size: CGSize) {
-        _ = size
-        // Constellation lines are resolution-independent; no per-size adjustments required.
+        self.viewportSizePoints = SIMD2<Float>(Float(size.width), Float(size.height))
     }
 
     func draw(
@@ -91,6 +96,12 @@ final class ConstellationLineRenderer {
             color: lineColor
         )
         renderEncoder.setVertexBytes(&uniforms, length: MemoryLayout<Uniforms>.size, index: BufferIndex.uniforms.rawValue)
+        var viewport = viewportSizePoints
+        renderEncoder.setVertexBytes(
+            &viewport,
+            length: MemoryLayout<SIMD2<Float>>.stride,
+            index: BufferIndex.viewportSize.rawValue
+        )
         renderEncoder.setVertexBuffer(lineBuffer, offset: 0, index: 0)
 
         renderEncoder.drawPrimitives(type: .line, vertexStart: 0, vertexCount: vertexCount)
@@ -141,28 +152,17 @@ final class ConstellationLineRenderer {
     }
 
     private static func buildVerticesForLine(start: simd_float3, end: simd_float3) -> [LineVertex] {
-        let startLength = simd_length(start)
-        let endLength = simd_length(end)
-        let radius = max(startLength, endLength)
-
-        let startDir = startLength > 0 ? simd_normalize(start) : start
-        let endDir = endLength > 0 ? simd_normalize(end) : end
-
-        func point(at t: Float) -> simd_float3 {
-            let mixed = simd_normalize(startDir + (endDir - startDir) * t)
-            return mixed * radius
-        }
-
-        let nearStart = point(at: 0.2)
-        let nearEnd = point(at: 0.8)
-
         return [
-            LineVertex(positionAlpha: simd_float4(start, 0.0)),
-            LineVertex(positionAlpha: simd_float4(nearStart, 1.0)),
-            LineVertex(positionAlpha: simd_float4(nearStart, 1.0)),
-            LineVertex(positionAlpha: simd_float4(nearEnd, 1.0)),
-            LineVertex(positionAlpha: simd_float4(nearEnd, 1.0)),
-            LineVertex(positionAlpha: simd_float4(end, 0.0))
+            LineVertex(
+                position: start,
+                lineStart: start,
+                lineEnd: end
+            ),
+            LineVertex(
+                position: end,
+                lineStart: start,
+                lineEnd: end
+            )
         ]
     }
 
@@ -223,5 +223,28 @@ final class ConstellationLineRenderer {
         } catch {
             throw ConstellationLineRendererError.pipelineCreationFailed(underlying: error)
         }
+    }
+
+    private static func viewportSizeInPoints(for view: MTKView, drawableSize: CGSize? = nil) -> SIMD2<Float> {
+        var widthPoints = Float(view.bounds.size.width)
+        var heightPoints = Float(view.bounds.size.height)
+
+        if (widthPoints <= 0 || heightPoints <= 0), let drawableSize {
+#if os(macOS) || targetEnvironment(macCatalyst)
+            let scale = Float(view.window?.backingScaleFactor ?? 1.0)
+#else
+            let scale = Float(view.contentScaleFactor)
+#endif
+            let safeScale = max(scale, 1.0)
+            widthPoints = Float(drawableSize.width) / safeScale
+            heightPoints = Float(drawableSize.height) / safeScale
+        }
+
+        if widthPoints <= 0 || heightPoints <= 0, let drawableSize {
+            widthPoints = Float(drawableSize.width)
+            heightPoints = Float(drawableSize.height)
+        }
+
+        return SIMD2<Float>(widthPoints, heightPoints)
     }
 }
