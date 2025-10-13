@@ -39,15 +39,23 @@ final class ConstellationLineRenderer {
     /// RGBA color applied to all constellation lines.
     var lineColor: SIMD4<Float> = SIMD4<Float>(0.9, 0.8, 1.0, 0.8)
 
-    init(device: MTLDevice, view: MTKView, starManager: any StarManaging) {
+    enum ConstellationLineRendererError: Error {
+        case defaultLibraryUnavailable
+        case vertexFunctionMissing(String)
+        case fragmentFunctionMissing(String)
+        case pipelineCreationFailed(underlying: Error)
+        case depthStateCreationFailed
+    }
+
+    init(device: MTLDevice, view: MTKView, starManager: any StarManaging) throws {
         self.device = device
-        self.pipelineState = try! ConstellationLineRenderer.buildPipeline(device: device, view: view)
+        self.pipelineState = try ConstellationLineRenderer.buildPipeline(device: device, view: view)
 
         let depthDescriptor = MTLDepthStencilDescriptor()
         depthDescriptor.depthCompareFunction = .lessEqual
         depthDescriptor.isDepthWriteEnabled = false
         guard let depthState = device.makeDepthStencilState(descriptor: depthDescriptor) else {
-            fatalError("Failed to create depth state for constellation lines")
+            throw ConstellationLineRendererError.depthStateCreationFailed
         }
         self.depthState = depthState
 
@@ -180,11 +188,19 @@ final class ConstellationLineRenderer {
     }
 
     private static func buildPipeline(device: MTLDevice, view: MTKView) throws -> MTLRenderPipelineState {
-        let library = device.makeDefaultLibrary()
+        guard let library = device.makeDefaultLibrary() else {
+            throw ConstellationLineRendererError.defaultLibraryUnavailable
+        }
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.label = "Constellation Line Pipeline"
-        descriptor.vertexFunction = library?.makeFunction(name: "constellation_line_vertex")
-        descriptor.fragmentFunction = library?.makeFunction(name: "constellation_line_fragment")
+        guard let vertexFunction = library.makeFunction(name: "constellation_line_vertex") else {
+            throw ConstellationLineRendererError.vertexFunctionMissing("constellation_line_vertex")
+        }
+        guard let fragmentFunction = library.makeFunction(name: "constellation_line_fragment") else {
+            throw ConstellationLineRendererError.fragmentFunctionMissing("constellation_line_fragment")
+        }
+        descriptor.vertexFunction = vertexFunction
+        descriptor.fragmentFunction = fragmentFunction
         descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
 #if os(macOS) || targetEnvironment(simulator)
         descriptor.depthAttachmentPixelFormat = .depth32Float_stencil8
@@ -202,6 +218,10 @@ final class ConstellationLineRenderer {
             attachment.sourceAlphaBlendFactor = .one
             attachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
         }
-        return try device.makeRenderPipelineState(descriptor: descriptor)
+        do {
+            return try device.makeRenderPipelineState(descriptor: descriptor)
+        } catch {
+            throw ConstellationLineRendererError.pipelineCreationFailed(underlying: error)
+        }
     }
 }

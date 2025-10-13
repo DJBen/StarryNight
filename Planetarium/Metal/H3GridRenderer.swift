@@ -27,17 +27,27 @@ final class H3GridRenderer {
     // Visibility toggle
     var isVisible: Bool = false
 
-    init(device: MTLDevice, view: MTKView) {
+    enum H3GridRendererError: Error {
+        case defaultLibraryUnavailable
+        case vertexFunctionMissing(String)
+        case fragmentFunctionMissing(String)
+        case pipelineCreationFailed(underlying: Error)
+        case depthStateCreationFailed
+    }
+
+    init(device: MTLDevice, view: MTKView) throws {
         self.device = device
 
         // Pipeline
-        self.pipelineState = try! H3GridRenderer.buildPipeline(device: device, view: view)
+        self.pipelineState = try H3GridRenderer.buildPipeline(device: device, view: view)
 
         // Depth: test but don't write
         let ds = MTLDepthStencilDescriptor()
         ds.depthCompareFunction = .lessEqual
         ds.isDepthWriteEnabled = false
-        guard let depth = device.makeDepthStencilState(descriptor: ds) else { fatalError("grid depth state") }
+        guard let depth = device.makeDepthStencilState(descriptor: ds) else {
+            throw H3GridRendererError.depthStateCreationFailed
+        }
         self.depthState = depth
     }
 
@@ -138,11 +148,19 @@ final class H3GridRenderer {
     }
 
     private static func buildPipeline(device: MTLDevice, view: MTKView) throws -> MTLRenderPipelineState {
-        let library = device.makeDefaultLibrary()
+        guard let library = device.makeDefaultLibrary() else {
+            throw H3GridRendererError.defaultLibraryUnavailable
+        }
         let desc = MTLRenderPipelineDescriptor()
         desc.label = "H3 Grid Pipeline"
-        desc.vertexFunction = library?.makeFunction(name: "h3line_vertex")
-        desc.fragmentFunction = library?.makeFunction(name: "h3line_fragment")
+        guard let vertexFunction = library.makeFunction(name: "h3line_vertex") else {
+            throw H3GridRendererError.vertexFunctionMissing("h3line_vertex")
+        }
+        guard let fragmentFunction = library.makeFunction(name: "h3line_fragment") else {
+            throw H3GridRendererError.fragmentFunctionMissing("h3line_fragment")
+        }
+        desc.vertexFunction = vertexFunction
+        desc.fragmentFunction = fragmentFunction
         desc.colorAttachments[0].pixelFormat = view.colorPixelFormat
 #if os(macOS) || targetEnvironment(simulator)
         desc.depthAttachmentPixelFormat = .depth32Float_stencil8
@@ -160,6 +178,10 @@ final class H3GridRenderer {
             att.sourceAlphaBlendFactor = .one
             att.destinationAlphaBlendFactor = .oneMinusSourceAlpha
         }
-        return try device.makeRenderPipelineState(descriptor: desc)
+        do {
+            return try device.makeRenderPipelineState(descriptor: desc)
+        } catch {
+            throw H3GridRendererError.pipelineCreationFailed(underlying: error)
+        }
     }
 }

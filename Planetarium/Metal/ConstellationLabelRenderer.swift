@@ -24,6 +24,20 @@ final class ConstellationLabelRenderer {
         let bounds: SIMD2<Float>
     }
 
+    enum ConstellationLabelRendererError: Error {
+        case atlasJSONMissing
+        case atlasLoadFailed(underlying: Error)
+        case atlasTextureMissing
+        case atlasTextureLoadFailed(underlying: Error)
+        case msdfRendererCreationFailed(underlying: Error)
+        case fontResourceMissing
+        case fontDataProviderCreationFailed
+        case fontRegistrationFailed(underlying: Error)
+        case meshCreationFailed(constellation: String)
+        case invalidConstellationCenter(constellation: String)
+        case uniformBufferAllocationFailed(constellation: String)
+    }
+
     private let device: MTLDevice
     private let msdfRenderer: MSDFTextRenderer
     private let atlasTexture: MTLTexture
@@ -39,22 +53,17 @@ final class ConstellationLabelRenderer {
     /// Toggle for label visibility.
     var isVisible: Bool = true
 
-    init?(
+    init(
         device: MTLDevice,
         view: MTKView,
         starManager: any StarManaging
-    ) {
+    ) throws {
         self.device = device
         self.drawableSize = view.drawableSize
         self.contentScale = ConstellationLabelRenderer.computeContentScale(for: view)
 
-        guard let atlas = ConstellationLabelRenderer.loadAtlas(),
-              let texture = try? ConstellationLabelRenderer.loadAtlasTexture(device: device)
-        else {
-            print("ConstellationLabelRenderer: Unable to load MSDF atlas assets.")
-            return nil
-        }
-        self.atlasTexture = texture
+        let atlas = try ConstellationLabelRenderer.loadAtlas()
+        self.atlasTexture = try ConstellationLabelRenderer.loadAtlasTexture(device: device)
 
         do {
             #if os(macOS) || targetEnvironment(simulator)
@@ -73,17 +82,13 @@ final class ConstellationLabelRenderer {
                 stencilPixelFormat: stencilPixelFormat
             )
         } catch {
-            print("ConstellationLabelRenderer: Failed to create MSDF renderer (\(error)).")
-            return nil
+            throw ConstellationLabelRendererError.msdfRendererCreationFailed(underlying: error)
         }
         atlasUnitRange = msdfRenderer.unitRange(for: atlasTexture)
 
-        guard let ctFont = ConstellationLabelRenderer.makeFont(size: 14) else {
-            print("ConstellationLabelRenderer: Could not create SF Pro Display font.")
-            return nil
-        }
+        let ctFont = try ConstellationLabelRenderer.makeFont(size: 14)
         let meshBuilder = MSDFTextMeshBuilder(device: device, atlas: atlas, font: ctFont)
-        buildLabels(
+        try buildLabels(
             builder: meshBuilder,
             constellations: Array(starManager.allConstellations()).sorted(by: { $0.name < $1.name })
         )
@@ -173,15 +178,15 @@ final class ConstellationLabelRenderer {
     private func buildLabels(
         builder: MSDFTextMeshBuilder,
         constellations: [Constellation]
-    ) {
-        labels = constellations.compactMap { constellation in
+    ) throws {
+        labels = try constellations.map { constellation in
             guard let mesh = builder.buildMesh(
                 text: constellation.localizedName,
                 in: labelFrame,
                 margin: labelMargin,
                 scale: contentScale
             ) else {
-                return nil
+                throw ConstellationLabelRendererError.meshCreationFailed(constellation: constellation.name)
             }
 
             let direction = SIMD3<Float>(
@@ -190,7 +195,9 @@ final class ConstellationLabelRenderer {
                 Float(constellation.center.z)
             )
             let length = simd_length(direction)
-            guard length > 0 else { return nil }
+            guard length > 0 else {
+                throw ConstellationLabelRendererError.invalidConstellationCenter(constellation: constellation.name)
+            }
             let normalizedDir = direction / length
             let worldPosition = starToWorldTransform * normalizedDir * labelDistance
 
@@ -198,7 +205,7 @@ final class ConstellationLabelRenderer {
                 length: MemoryLayout<MSDFUniforms>.stride,
                 options: .storageModeShared
             ) else {
-                return nil
+                throw ConstellationLabelRendererError.uniformBufferAllocationFailed(constellation: constellation.name)
             }
             buffer.label = "\(constellation.iAUName).LabelUniforms"
 
@@ -215,11 +222,15 @@ final class ConstellationLabelRenderer {
         }
     }
 
-    private static func loadAtlas() -> MSDFAtlas? {
+    private static func loadAtlas() throws -> MSDFAtlas {
         guard let url = Bundle.main.url(forResource: "SF-Pro-Display_mtsdf", withExtension: "json") else {
-            return nil
+            throw ConstellationLabelRendererError.atlasJSONMissing
         }
-        return try? MSDFAtlas.load(from: url)
+        do {
+            return try MSDFAtlas.load(from: url)
+        } catch {
+            throw ConstellationLabelRendererError.atlasLoadFailed(underlying: error)
+        }
     }
 
     private static func loadAtlasTexture(device: MTLDevice) throws -> MTLTexture {
@@ -233,23 +244,25 @@ final class ConstellationLabelRenderer {
         ]
 
         guard let url = Bundle.main.url(forResource: "SF-Pro-Display_mtsdf", withExtension: "png") else {
-            throw NSError(domain: "ConstellationLabelRenderer", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing SF-Pro-Display_mtsdf.png"])
+            throw ConstellationLabelRendererError.atlasTextureMissing
         }
 
-        return try textureLoader.newTexture(URL: url, options: options)
+        do {
+            return try textureLoader.newTexture(URL: url, options: options)
+        } catch {
+            throw ConstellationLabelRendererError.atlasTextureLoadFailed(underlying: error)
+        }
     }
 
-    private static func makeFont(size: CGFloat) -> CTFont? {
+    private static func makeFont(size: CGFloat) throws -> CTFont {
         guard let fontURL = Bundle.main.url(forResource: "SF-Pro-Display-Regular", withExtension: "otf") else {
-            print("ConstellationLabelRenderer: SF-Pro-Display-Regular.otf not found in bundle.")
-            return nil
+            throw ConstellationLabelRendererError.fontResourceMissing
         }
 
         guard let dataProvider = CGDataProvider(url: fontURL as CFURL),
               let cgFont = CGFont(dataProvider)
         else {
-            print("ConstellationLabelRenderer: Failed to load font data from \(fontURL).")
-            return nil
+            throw ConstellationLabelRendererError.fontDataProviderCreationFailed
         }
 
         var error: Unmanaged<CFError>?
@@ -259,8 +272,7 @@ final class ConstellationLabelRenderer {
                 if let ctError = CTFontManagerError(rawValue: code), ctError == .alreadyRegistered {
                     // Font already registered; nothing to do.
                 } else {
-                    print("ConstellationLabelRenderer: Font registration failed with error: \(cfError)")
-                    return nil
+                    throw ConstellationLabelRendererError.fontRegistrationFailed(underlying: cfError)
                 }
             }
         }

@@ -106,12 +106,12 @@ class MetalViewController: PlatformViewController, StarTapDelegate
         mtkView.backgroundColor = UIColor.black
 #endif
 
-        guard let newRenderer = try? Renderer(metalKitView: mtkView, starManager: starManager) else {
-            print("Renderer cannot be initialized")
+        do {
+            renderer = try Renderer(metalKitView: mtkView, starManager: starManager)
+        } catch {
+            print("Renderer cannot be initialized: \(error)")
             return
         }
-
-        renderer = newRenderer
 
         renderer.mtkView(mtkView, drawableSizeWillChange: mtkView.drawableSize)
         mtkView.delegate = renderer

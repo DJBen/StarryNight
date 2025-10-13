@@ -11,8 +11,8 @@ final class StarRenderer {
     private let depthState: MTLDepthStencilState
     private let starManager: StarManaging
 
-    private var quadVertexBuffer: MTLBuffer?
-    private var quadIndexBuffer: MTLBuffer?
+    private let quadVertexBuffer: MTLBuffer
+    private let quadIndexBuffer: MTLBuffer
     private var instanceBuffer: MTLBuffer?
 
     // Data for adaptive rendering
@@ -20,22 +20,34 @@ final class StarRenderer {
     private var h3StarCache: [H3Index: [StarInstance]] = [:]
     private var activeH3CellsByRes: [Int: Set<H3Index>] = [0: [], 1: [], 2: []]
 
-    init(device: MTLDevice, view: MTKView, starManager: any StarManaging) {
+    enum StarRendererError: Error {
+        case defaultLibraryUnavailable
+        case vertexFunctionMissing(String)
+        case fragmentFunctionMissing(String)
+        case pipelineCreationFailed(underlying: Error)
+        case depthStateCreationFailed
+        case quadVertexBufferCreationFailed
+        case quadIndexBufferCreationFailed
+    }
+
+    init(device: MTLDevice, view: MTKView, starManager: any StarManaging) throws {
         self.device = device
         self.starManager = starManager
 
         // Pipeline
-        self.pipelineState = try! StarRenderer.createPipeline(device: device, view: view)
+        self.pipelineState = try StarRenderer.createPipeline(device: device, view: view)
 
         // Depth state: test but don't write so translucent edges don't occlude the skybox
         let starDepthDesc = MTLDepthStencilDescriptor()
         starDepthDesc.depthCompareFunction = .lessEqual
         starDepthDesc.isDepthWriteEnabled = false
-        guard let ds = device.makeDepthStencilState(descriptor: starDepthDesc) else { fatalError("Star depth state") }
+        guard let ds = device.makeDepthStencilState(descriptor: starDepthDesc) else {
+            throw StarRendererError.depthStateCreationFailed
+        }
         self.depthState = ds
 
         // Geometry buffers
-        (quadVertexBuffer, quadIndexBuffer) = StarRenderer.createQuad(device: device)
+        (quadVertexBuffer, quadIndexBuffer) = try StarRenderer.createQuad(device: device)
 
         // Preload brightest stars (FOV-independent now)
         self.brightestStarInstances = starManager.brightestStars().map { 
@@ -131,9 +143,7 @@ final class StarRenderer {
         }
 
         // 5. Draw using the current state of the instance buffer
-        guard let quadVB = quadVertexBuffer,
-              let quadIB = quadIndexBuffer,
-              let currentInstanceBuffer = self.instanceBuffer,
+        guard let currentInstanceBuffer = self.instanceBuffer,
               currentInstanceBuffer.length > 0 else { return }
         
         let instanceCount = currentInstanceBuffer.length / MemoryLayout<StarInstance>.stride
@@ -153,14 +163,14 @@ final class StarRenderer {
         )
         renderEncoder.setVertexBytes(&uniforms, length: MemoryLayout<Uniforms>.size, index: BufferIndex.uniforms.rawValue)
 
-        renderEncoder.setVertexBuffer(quadVB, offset: 0, index: 0)
+        renderEncoder.setVertexBuffer(quadVertexBuffer, offset: 0, index: 0)
         renderEncoder.setVertexBuffer(currentInstanceBuffer, offset: 0, index: 1)
 
         renderEncoder.drawIndexedPrimitives(
             type: .triangle,
             indexCount: 6,
             indexType: .uint16,
-            indexBuffer: quadIB,
+            indexBuffer: quadIndexBuffer,
             indexBufferOffset: 0,
             instanceCount: instanceCount
         )
@@ -169,7 +179,7 @@ final class StarRenderer {
 
     // MARK: - Private helpers
 
-    private static func createQuad(device: MTLDevice) -> (MTLBuffer?, MTLBuffer?) {
+    private static func createQuad(device: MTLDevice) throws -> (MTLBuffer, MTLBuffer) {
         let verts: [SIMD3<Float>] = [
             SIMD3(-1, -1, 0),
             SIMD3( 1, -1, 0),
@@ -177,17 +187,29 @@ final class StarRenderer {
             SIMD3(-1,  1, 0),
         ]
         let indices: [UInt16] = [0,1,2, 0,2,3]
-        let vb = device.makeBuffer(bytes: verts, length: verts.count * MemoryLayout<SIMD3<Float>>.stride)
-        let ib = device.makeBuffer(bytes: indices, length: indices.count * MemoryLayout<UInt16>.stride)
+        guard let vb = device.makeBuffer(bytes: verts, length: verts.count * MemoryLayout<SIMD3<Float>>.stride) else {
+            throw StarRendererError.quadVertexBufferCreationFailed
+        }
+        guard let ib = device.makeBuffer(bytes: indices, length: indices.count * MemoryLayout<UInt16>.stride) else {
+            throw StarRendererError.quadIndexBufferCreationFailed
+        }
         return (vb, ib)
     }
 
     private static func createPipeline(device: MTLDevice, view: MTKView) throws -> MTLRenderPipelineState {
-        let library = device.makeDefaultLibrary()
+        guard let library = device.makeDefaultLibrary() else {
+            throw StarRendererError.defaultLibraryUnavailable
+        }
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.label = "Star Pipeline"
-        descriptor.vertexFunction = library?.makeFunction(name: "star_vertex")
-        descriptor.fragmentFunction = library?.makeFunction(name: "star_fragment")
+        guard let vertexFunction = library.makeFunction(name: "star_vertex") else {
+            throw StarRendererError.vertexFunctionMissing("star_vertex")
+        }
+        guard let fragmentFunction = library.makeFunction(name: "star_fragment") else {
+            throw StarRendererError.fragmentFunctionMissing("star_fragment")
+        }
+        descriptor.vertexFunction = vertexFunction
+        descriptor.fragmentFunction = fragmentFunction
         descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
 #if os(macOS) || targetEnvironment(simulator)
         descriptor.depthAttachmentPixelFormat = .depth32Float_stencil8
@@ -206,7 +228,11 @@ final class StarRenderer {
             att.sourceAlphaBlendFactor = .one
             att.destinationAlphaBlendFactor = .oneMinusSourceAlpha
         }
-        return try device.makeRenderPipelineState(descriptor: descriptor)
+        do {
+            return try device.makeRenderPipelineState(descriptor: descriptor)
+        } catch {
+            throw StarRendererError.pipelineCreationFailed(underlying: error)
+        }
     }
 
     private static func starToInstance(_ star: Star) -> StarInstance {

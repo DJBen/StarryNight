@@ -9,30 +9,40 @@ final class CrosshairRenderer {
     private let pipelineState: MTLRenderPipelineState
     private let depthState: MTLDepthStencilState
     
-    private var crosshairVertexBuffer: MTLBuffer?
-    private var crosshairIndexBuffer: MTLBuffer?
+    private let crosshairVertexBuffer: MTLBuffer
+    private let crosshairIndexBuffer: MTLBuffer
     
     // Crosshair state
     private var selectedStarWorldPosition: SIMD3<Float>?
     private var rotationAngle: Float = 0.0
     
-    init(device: MTLDevice, view: MTKView) {
+    enum CrosshairRendererError: Error {
+        case defaultLibraryUnavailable
+        case vertexFunctionMissing(String)
+        case fragmentFunctionMissing(String)
+        case pipelineCreationFailed(underlying: Error)
+        case depthStateCreationFailed
+        case vertexBufferCreationFailed
+        case indexBufferCreationFailed
+    }
+
+    init(device: MTLDevice, view: MTKView) throws {
         self.device = device
         
         // Create pipeline state
-        self.pipelineState = try! CrosshairRenderer.createPipeline(device: device, view: view)
+        self.pipelineState = try CrosshairRenderer.createPipeline(device: device, view: view)
         
         // Create depth state - test but don't write, render on top
         let crosshairDepthDesc = MTLDepthStencilDescriptor()
         crosshairDepthDesc.depthCompareFunction = .always
         crosshairDepthDesc.isDepthWriteEnabled = false
         guard let ds = device.makeDepthStencilState(descriptor: crosshairDepthDesc) else { 
-            fatalError("Crosshair depth state creation failed") 
+            throw CrosshairRendererError.depthStateCreationFailed 
         }
         self.depthState = ds
         
         // Create crosshair geometry
-        (crosshairVertexBuffer, crosshairIndexBuffer) = CrosshairRenderer.createCrosshairGeometry(device: device)
+        (crosshairVertexBuffer, crosshairIndexBuffer) = try CrosshairRenderer.createCrosshairGeometry(device: device)
     }
     
     /// Update the selected star position and animate the crosshair
@@ -59,9 +69,7 @@ final class CrosshairRenderer {
         viewMatrix: matrix_float4x4,
         fov: Float
     ) {
-        guard let starPosition = selectedStarWorldPosition,
-              let vertexBuffer = crosshairVertexBuffer,
-              let indexBuffer = crosshairIndexBuffer else { return }
+        guard let starPosition = selectedStarWorldPosition else { return }
         
         renderEncoder.pushDebugGroup("Crosshair")
         renderEncoder.setRenderPipelineState(pipelineState)
@@ -82,13 +90,13 @@ final class CrosshairRenderer {
         )
         
         renderEncoder.setVertexBytes(&uniforms, length: MemoryLayout<Uniforms>.size, index: BufferIndex.uniforms.rawValue)
-        renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
+        renderEncoder.setVertexBuffer(crosshairVertexBuffer, offset: 0, index: 0)
         
         renderEncoder.drawIndexedPrimitives(
             type: .triangle,
             indexCount: 24, // 4 quads * 6 indices each (2 triangles)
             indexType: .uint16,
-            indexBuffer: indexBuffer,
+            indexBuffer: crosshairIndexBuffer,
             indexBufferOffset: 0
         )
         
@@ -97,7 +105,7 @@ final class CrosshairRenderer {
     
     // MARK: - Private helpers
     
-    private static func createCrosshairGeometry(device: MTLDevice) -> (MTLBuffer?, MTLBuffer?) {
+    private static func createCrosshairGeometry(device: MTLDevice) throws -> (MTLBuffer, MTLBuffer) {
         let length: Float = 0.3
         let thickness: Float = 0.02
         let gap: Float = 0.12
@@ -139,21 +147,33 @@ final class CrosshairRenderer {
             12, 13, 14,  12, 14, 15
         ]
         
-        let vertexBuffer = device.makeBuffer(bytes: vertices, length: vertices.count * MemoryLayout<SIMD3<Float>>.stride)
-        let indexBuffer = device.makeBuffer(bytes: indices, length: indices.count * MemoryLayout<UInt16>.stride)
+        guard let vertexBuffer = device.makeBuffer(bytes: vertices, length: vertices.count * MemoryLayout<SIMD3<Float>>.stride) else {
+            throw CrosshairRendererError.vertexBufferCreationFailed
+        }
+        guard let indexBuffer = device.makeBuffer(bytes: indices, length: indices.count * MemoryLayout<UInt16>.stride) else {
+            throw CrosshairRendererError.indexBufferCreationFailed
+        }
         
-        vertexBuffer?.label = "Crosshair Vertices"
-        indexBuffer?.label = "Crosshair Indices"
+        vertexBuffer.label = "Crosshair Vertices"
+        indexBuffer.label = "Crosshair Indices"
         
         return (vertexBuffer, indexBuffer)
     }
     
     private static func createPipeline(device: MTLDevice, view: MTKView) throws -> MTLRenderPipelineState {
-        let library = device.makeDefaultLibrary()
+        guard let library = device.makeDefaultLibrary() else {
+            throw CrosshairRendererError.defaultLibraryUnavailable
+        }
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.label = "Crosshair Pipeline"
-        descriptor.vertexFunction = library?.makeFunction(name: "crosshair_vertex")
-        descriptor.fragmentFunction = library?.makeFunction(name: "crosshair_fragment")
+        guard let vertexFunction = library.makeFunction(name: "crosshair_vertex") else {
+            throw CrosshairRendererError.vertexFunctionMissing("crosshair_vertex")
+        }
+        guard let fragmentFunction = library.makeFunction(name: "crosshair_fragment") else {
+            throw CrosshairRendererError.fragmentFunctionMissing("crosshair_fragment")
+        }
+        descriptor.vertexFunction = vertexFunction
+        descriptor.fragmentFunction = fragmentFunction
         descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
         
 #if os(macOS) || targetEnvironment(simulator)
@@ -175,6 +195,10 @@ final class CrosshairRenderer {
             att.destinationAlphaBlendFactor = .oneMinusSourceAlpha
         }
         
-        return try device.makeRenderPipelineState(descriptor: descriptor)
+        do {
+            return try device.makeRenderPipelineState(descriptor: descriptor)
+        } catch {
+            throw CrosshairRendererError.pipelineCreationFailed(underlying: error)
+        }
     }
 }

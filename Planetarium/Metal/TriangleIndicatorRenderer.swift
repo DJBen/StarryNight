@@ -9,8 +9,8 @@ final class TriangleIndicatorRenderer {
     private let pipelineState: MTLRenderPipelineState
     private let depthState: MTLDepthStencilState
     
-    private var triangleVertexBuffer: MTLBuffer?
-    private var triangleIndexBuffer: MTLBuffer?
+    private let triangleVertexBuffer: MTLBuffer
+    private let triangleIndexBuffer: MTLBuffer
     private var viewportSizePixels = SIMD2<Float>(repeating: 0)
     
     // Indicator state
@@ -25,23 +25,33 @@ final class TriangleIndicatorRenderer {
         var padding: SIMD3<Float> = .zero
     }
     
-    init(device: MTLDevice, view: MTKView) {
+    enum TriangleIndicatorRendererError: Error {
+        case defaultLibraryUnavailable
+        case vertexFunctionMissing(String)
+        case fragmentFunctionMissing(String)
+        case pipelineCreationFailed(underlying: Error)
+        case depthStateCreationFailed
+        case vertexBufferCreationFailed
+        case indexBufferCreationFailed
+    }
+
+    init(device: MTLDevice, view: MTKView) throws {
         self.device = device
         
         // Create pipeline state
-        self.pipelineState = try! TriangleIndicatorRenderer.createPipeline(device: device, view: view)
+        self.pipelineState = try TriangleIndicatorRenderer.createPipeline(device: device, view: view)
         
         // Create depth state - render on top of everything
         let indicatorDepthDesc = MTLDepthStencilDescriptor()
         indicatorDepthDesc.depthCompareFunction = .always
         indicatorDepthDesc.isDepthWriteEnabled = false
         guard let ds = device.makeDepthStencilState(descriptor: indicatorDepthDesc) else { 
-            fatalError("Triangle indicator depth state creation failed") 
+            throw TriangleIndicatorRendererError.depthStateCreationFailed 
         }
         self.depthState = ds
         
         // Create triangle geometry
-        (triangleVertexBuffer, triangleIndexBuffer) = TriangleIndicatorRenderer.createTriangleGeometry(device: device)
+        (triangleVertexBuffer, triangleIndexBuffer) = try TriangleIndicatorRenderer.createTriangleGeometry(device: device)
     }
     
     /// Update the selected star and calculate indicator position
@@ -127,8 +137,6 @@ final class TriangleIndicatorRenderer {
         // Only draw if we have a selected star that's not visible
         guard !isStarVisible,
               let screenPos = indicatorScreenPosition,
-              let vertexBuffer = triangleVertexBuffer,
-              let indexBuffer = triangleIndexBuffer,
               viewportSizePixels.x > 0,
               viewportSizePixels.y > 0 else { return }
         
@@ -149,7 +157,7 @@ final class TriangleIndicatorRenderer {
         )
         
         renderEncoder.setVertexBytes(&uniforms, length: MemoryLayout<Uniforms>.size, index: BufferIndex.uniforms.rawValue)
-        renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
+        renderEncoder.setVertexBuffer(triangleVertexBuffer, offset: 0, index: 0)
         
         // Convert indicator center from NDC to pixel space relative to viewport center
         let viewportPixels = viewportSizePixels
@@ -180,7 +188,7 @@ final class TriangleIndicatorRenderer {
             type: .triangle,
             indexCount: 3,
             indexType: .uint16,
-            indexBuffer: indexBuffer,
+            indexBuffer: triangleIndexBuffer,
             indexBufferOffset: 0
         )
         
@@ -206,7 +214,7 @@ final class TriangleIndicatorRenderer {
     
     // MARK: - Private helpers
     
-    private static func createTriangleGeometry(device: MTLDevice) -> (MTLBuffer?, MTLBuffer?) {
+    private static func createTriangleGeometry(device: MTLDevice) throws -> (MTLBuffer, MTLBuffer) {
         // Create equilateral triangle pointing right (will be rotated as needed)
         let sideLength: Float = 64.0
         let height = sideLength * sqrt(3.0) / 2.0
@@ -219,21 +227,33 @@ final class TriangleIndicatorRenderer {
         
         let indices: [UInt16] = [0, 1, 2]
         
-        let vertexBuffer = device.makeBuffer(bytes: vertices, length: vertices.count * MemoryLayout<SIMD2<Float>>.stride)
-        let indexBuffer = device.makeBuffer(bytes: indices, length: indices.count * MemoryLayout<UInt16>.stride)
+        guard let vertexBuffer = device.makeBuffer(bytes: vertices, length: vertices.count * MemoryLayout<SIMD2<Float>>.stride) else {
+            throw TriangleIndicatorRendererError.vertexBufferCreationFailed
+        }
+        guard let indexBuffer = device.makeBuffer(bytes: indices, length: indices.count * MemoryLayout<UInt16>.stride) else {
+            throw TriangleIndicatorRendererError.indexBufferCreationFailed
+        }
         
-        vertexBuffer?.label = "Triangle Indicator Vertices"
-        indexBuffer?.label = "Triangle Indicator Indices"
+        vertexBuffer.label = "Triangle Indicator Vertices"
+        indexBuffer.label = "Triangle Indicator Indices"
         
         return (vertexBuffer, indexBuffer)
     }
     
     private static func createPipeline(device: MTLDevice, view: MTKView) throws -> MTLRenderPipelineState {
-        let library = device.makeDefaultLibrary()
+        guard let library = device.makeDefaultLibrary() else {
+            throw TriangleIndicatorRendererError.defaultLibraryUnavailable
+        }
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.label = "Triangle Indicator Pipeline"
-        descriptor.vertexFunction = library?.makeFunction(name: "triangle_indicator_vertex")
-        descriptor.fragmentFunction = library?.makeFunction(name: "triangle_indicator_fragment")
+        guard let vertexFunction = library.makeFunction(name: "triangle_indicator_vertex") else {
+            throw TriangleIndicatorRendererError.vertexFunctionMissing("triangle_indicator_vertex")
+        }
+        guard let fragmentFunction = library.makeFunction(name: "triangle_indicator_fragment") else {
+            throw TriangleIndicatorRendererError.fragmentFunctionMissing("triangle_indicator_fragment")
+        }
+        descriptor.vertexFunction = vertexFunction
+        descriptor.fragmentFunction = fragmentFunction
         descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
         
 #if os(macOS) || targetEnvironment(simulator)
@@ -255,6 +275,10 @@ final class TriangleIndicatorRenderer {
             att.destinationAlphaBlendFactor = .oneMinusSourceAlpha
         }
         
-        return try device.makeRenderPipelineState(descriptor: descriptor)
+        do {
+            return try device.makeRenderPipelineState(descriptor: descriptor)
+        } catch {
+            throw TriangleIndicatorRendererError.pipelineCreationFailed(underlying: error)
+        }
     }
 }

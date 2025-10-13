@@ -30,6 +30,9 @@ let numFloatValues = 100
 
 enum RendererError: Error {
     case badVertexDescriptor
+    case metalDeviceUnavailable
+    case commandQueueCreationFailed
+    case subrendererInitializationFailed(component: String, underlying: Error)
 }
 
 class Renderer: NSObject, MTKViewDelegate {
@@ -52,7 +55,7 @@ class Renderer: NSObject, MTKViewDelegate {
     private let starRenderer: StarRenderer
     private let constellationLineRenderer: ConstellationLineRenderer
     private let constellationBorderRenderer: ConstellationBorderRenderer
-    private let constellationLabelRenderer: ConstellationLabelRenderer?
+    private let constellationLabelRenderer: ConstellationLabelRenderer
     private let h3GridRenderer: H3GridRenderer
     private let crosshairRenderer: CrosshairRenderer
     private let triangleIndicatorRenderer: TriangleIndicatorRenderer
@@ -79,14 +82,19 @@ class Renderer: NSObject, MTKViewDelegate {
     // Selected star for crosshair display
     private var selectedStar: Star?
 
-    init?(
+    init(
         metalKitView: MTKView,
         starManager: any StarManaging
     ) throws {
         self.starManager = starManager
-        self.device = metalKitView.device!
+        guard let device = metalKitView.device else {
+            throw RendererError.metalDeviceUnavailable
+        }
+        self.device = device
 
-        guard let queue = self.device.makeCommandQueue() else { return nil }
+        guard let queue = device.makeCommandQueue() else {
+            throw RendererError.commandQueueCreationFailed
+        }
         self.commandQueue = queue
         metalKitView.colorPixelFormat = MTLPixelFormat.bgra8Unorm_srgb
         metalKitView.sampleCount = 1
@@ -94,19 +102,51 @@ class Renderer: NSObject, MTKViewDelegate {
         // Initialize camera system
         self.camera = Camera()
 
-        let depthStencilTextures = allocateDepthStencilTextures(device: self.device, metalKitView: metalKitView)
+        let depthStencilTextures = allocateDepthStencilTextures(device: device, metalKitView: metalKitView)
         self.depthTexture = depthStencilTextures.depthTexture
         self.stencilTexture = depthStencilTextures.stencilTexture
 
         // Initialize sub-renderers
-        self.skyboxRenderer = SkyboxRenderer(device: self.device, view: metalKitView)
-        self.starRenderer = StarRenderer(device: self.device, view: metalKitView, starManager: starManager)
-        self.constellationLineRenderer = ConstellationLineRenderer(device: self.device, view: metalKitView, starManager: starManager)
-        self.constellationBorderRenderer = ConstellationBorderRenderer(device: self.device, view: metalKitView, starManager: starManager)
-        self.constellationLabelRenderer = try ConstellationLabelRenderer(device: self.device, view: metalKitView, starManager: starManager)
-        self.h3GridRenderer = H3GridRenderer(device: self.device, view: metalKitView)
-        self.crosshairRenderer = CrosshairRenderer(device: self.device, view: metalKitView)
-        self.triangleIndicatorRenderer = TriangleIndicatorRenderer(device: self.device, view: metalKitView)
+        do {
+            self.skyboxRenderer = try SkyboxRenderer(device: device, view: metalKitView)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "SkyboxRenderer", underlying: error)
+        }
+        do {
+            self.starRenderer = try StarRenderer(device: device, view: metalKitView, starManager: starManager)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "StarRenderer", underlying: error)
+        }
+        do {
+            self.constellationLineRenderer = try ConstellationLineRenderer(device: device, view: metalKitView, starManager: starManager)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "ConstellationLineRenderer", underlying: error)
+        }
+        do {
+            self.constellationBorderRenderer = try ConstellationBorderRenderer(device: device, view: metalKitView, starManager: starManager)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "ConstellationBorderRenderer", underlying: error)
+        }
+        do {
+            self.constellationLabelRenderer = try ConstellationLabelRenderer(device: device, view: metalKitView, starManager: starManager)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "ConstellationLabelRenderer", underlying: error)
+        }
+        do {
+            self.h3GridRenderer = try H3GridRenderer(device: device, view: metalKitView)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "H3GridRenderer", underlying: error)
+        }
+        do {
+            self.crosshairRenderer = try CrosshairRenderer(device: device, view: metalKitView)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "CrosshairRenderer", underlying: error)
+        }
+        do {
+            self.triangleIndicatorRenderer = try TriangleIndicatorRenderer(device: device, view: metalKitView)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "TriangleIndicatorRenderer", underlying: error)
+        }
 
 #if os(macOS) || targetEnvironment(simulator)
         metalKitView.framebufferOnly = false
@@ -177,8 +217,8 @@ class Renderer: NSObject, MTKViewDelegate {
     }
     
     public var areConstellationLabelsVisible: Bool {
-        get { constellationLabelRenderer?.isVisible ?? false }
-        set { constellationLabelRenderer?.isVisible = newValue }
+        get { constellationLabelRenderer.isVisible }
+        set { constellationLabelRenderer.isVisible = newValue }
     }
     
     // MARK: - Debug viewport control
@@ -297,7 +337,7 @@ class Renderer: NSObject, MTKViewDelegate {
                     projectionMatrix: projectionMatrix,
                     viewMatrix: viewMatrix
                 )
-                constellationLabelRenderer?.draw(
+                constellationLabelRenderer.draw(
                     renderEncoder: renderEncoder,
                     projectionMatrix: projectionMatrix,
                     viewMatrix: viewMatrix
@@ -339,7 +379,7 @@ class Renderer: NSObject, MTKViewDelegate {
         h3GridRenderer.drawableSizeWillChange(to: size)
         constellationLineRenderer.drawableSizeWillChange(to: size)
         constellationBorderRenderer.drawableSizeWillChange(to: size)
-        constellationLabelRenderer?.drawableSizeWillChange(to: size)
+        constellationLabelRenderer.drawableSizeWillChange(to: size)
     }
 }
 
