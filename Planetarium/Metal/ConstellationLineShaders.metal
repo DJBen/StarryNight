@@ -15,6 +15,7 @@ struct ConstellationLineVertexOut {
     float fovMultiplier;
     float lineLength [[flat]];
     float progress [[center_no_perspective]];
+    float2 ndc [[center_no_perspective]];
 };
 
 struct ConstellationLineVertexIn {
@@ -60,6 +61,7 @@ vertex ConstellationLineVertexOut constellation_line_vertex(
     out.position = clipPosition;
     out.lineLength = lineLength;
     out.progress = lineLength > 0.0001 ? clamp(distanceFromStart / lineLength, 0.0, 1.0) : 0.0;
+    out.ndc = ndcCurrent;
 
     float fovMultiplier = 1.0;
     const float fov = uniforms.fov;
@@ -85,8 +87,9 @@ fragment half4 constellation_line_fragment(ConstellationLineVertexOut in [[stage
     const float startAlpha = smoothstep(0.0, fadeLength, distanceFromStart);
     const float endAlpha = smoothstep(0.0, fadeLength, distanceFromEnd);
     float gradientAlpha = startAlpha * endAlpha;
+    const float radialFade = clamp(1.0 - length(in.ndc), 0.0, 1.0);
 
-    float finalAlpha = clamp(in.baseAlpha * in.fovMultiplier * gradientAlpha, 0.0, 1.0);
+    float finalAlpha = clamp(in.baseAlpha * in.fovMultiplier * gradientAlpha * radialFade, 0.0, 1.0);
     const float3 rgb = in.baseColor * finalAlpha;
     const float4 premultiplied = float4(rgb, finalAlpha);
     return half4(premultiplied);
