@@ -205,25 +205,6 @@ class Renderer: NSObject, MTKViewDelegate {
         get { h3GridRenderer.isVisible }
         set { h3GridRenderer.isVisible = newValue }
     }
-
-    public var areConstellationBordersVisible: Bool {
-        get { constellationBorderRenderer.isVisible }
-        set { constellationBorderRenderer.isVisible = newValue }
-    }
-
-    public var areConstellationLinesVisible: Bool {
-        get { constellationLineRenderer.isVisible }
-        set { constellationLineRenderer.isVisible = newValue }
-    }
-    
-    public var areConstellationLabelsVisible: Bool {
-        get { constellationLabelRenderer.isVisible }
-        set { constellationLabelRenderer.isVisible = newValue }
-    }
-    
-    // MARK: - Debug viewport control
-    
-    public var isDebugViewportVisible: Bool = false
     
     // MARK: - Star selection
     
@@ -251,6 +232,25 @@ class Renderer: NSObject, MTKViewDelegate {
         }
         return false
     }
+
+    public var areConstellationBordersVisible: Bool {
+        get { constellationBorderRenderer.isVisible }
+        set { constellationBorderRenderer.isVisible = newValue }
+    }
+
+    public var areConstellationLinesVisible: Bool {
+        get { constellationLineRenderer.isVisible }
+        set { constellationLineRenderer.isVisible = newValue }
+    }
+    
+    public var areConstellationLabelsVisible: Bool {
+        get { constellationLabelRenderer.isVisible }
+        set { constellationLabelRenderer.isVisible = newValue }
+    }
+    
+    // MARK: - Debug viewport control
+    
+    public var isDebugViewportVisible: Bool = false
 
     func draw(in view: MTKView) {
         // This method is kept for compatibility but actual rendering
