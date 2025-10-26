@@ -2,6 +2,13 @@ import Metal
 import MetalKit
 import simd
 
+enum SkyboxRendererError: Error {
+    case depthStateCreationFailed
+    case pipelineCreationFailed(underlying: Error)
+    case vertexBufferCreationFailed
+    case textureLoadFailed(underlying: Error)
+}
+
 /// Renders the cubemap skybox. Owns its own Metal resources.
 final class SkyboxRenderer {
     private let device: MTLDevice
@@ -10,7 +17,7 @@ final class SkyboxRenderer {
     private let vertexBuffer: MTLBuffer
     private let texture: MTLTexture
 
-    init(device: MTLDevice, view: MTKView) {
+    init(device: MTLDevice, view: MTKView) throws {
         self.device = device
 
         // Depth state: render skybox with lessEqual depth test, no depth writes
@@ -18,16 +25,24 @@ final class SkyboxRenderer {
         depthDesc.depthCompareFunction = .lessEqual
         depthDesc.isDepthWriteEnabled = false
         guard let depthState = device.makeDepthStencilState(descriptor: depthDesc) else {
-            fatalError("Failed to create skybox depth state")
+            throw SkyboxRendererError.depthStateCreationFailed
         }
         self.depthState = depthState
 
         // Pipeline state
-        self.pipelineState = try! SkyboxRenderer.createPipelineState(device: device, view: view)
+        do {
+            self.pipelineState = try SkyboxRenderer.createPipelineState(device: device, view: view)
+        } catch {
+            throw SkyboxRendererError.pipelineCreationFailed(underlying: error)
+        }
 
         // Geometry + texture
-        self.vertexBuffer = SkyboxRenderer.createVertexBuffer(device: device)
-        self.texture = try! SkyboxRenderer.loadTexture(device: device, contentScaleFactor: view.contentScaleFactor)
+        self.vertexBuffer = try SkyboxRenderer.createVertexBuffer(device: device)
+        do {
+            self.texture = try SkyboxRenderer.loadTexture(device: device, contentScaleFactor: view.contentScaleFactor)
+        } catch {
+            throw SkyboxRendererError.textureLoadFailed(underlying: error)
+        }
     }
 
     func draw(renderEncoder: MTLRenderCommandEncoder, projectionMatrix: matrix_float4x4, viewMatrix: matrix_float4x4) {
@@ -67,7 +82,7 @@ final class SkyboxRenderer {
         return try loader.newTexture(name: "milky_way", scaleFactor: contentScaleFactor, bundle: nil, options: options)
     }
 
-    private static func createVertexBuffer(device: MTLDevice) -> MTLBuffer {
+    private static func createVertexBuffer(device: MTLDevice) throws -> MTLBuffer {
         // Create a cube with vertices positioned to create proper direction vectors for cube map sampling
         let vertices: [Float] = [
             // Front face
@@ -85,7 +100,7 @@ final class SkyboxRenderer {
         ]
 
         guard let buffer = device.makeBuffer(bytes: vertices, length: vertices.count * MemoryLayout<Float>.size, options: []) else {
-            fatalError("Could not create skybox vertex buffer")
+            throw SkyboxRendererError.vertexBufferCreationFailed
         }
         return buffer
     }

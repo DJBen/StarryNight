@@ -30,6 +30,9 @@ let numFloatValues = 100
 
 enum RendererError: Error {
     case badVertexDescriptor
+    case metalDeviceUnavailable
+    case commandQueueCreationFailed
+    case subrendererInitializationFailed(component: String, underlying: Error)
 }
 
 class Renderer: NSObject, MTKViewDelegate {
@@ -40,6 +43,9 @@ class Renderer: NSObject, MTKViewDelegate {
     
     // Delegate for star tap handling
     weak var starTapDelegate: StarTapDelegate?
+    
+    // Reference to MetalViewController for debug updates
+    weak var metalViewController: MetalViewController?
 
     var depthTexture: MTLTexture
     var stencilTexture: MTLTexture
@@ -47,6 +53,9 @@ class Renderer: NSObject, MTKViewDelegate {
     // Sub-renderers
     private let skyboxRenderer: SkyboxRenderer
     private let starRenderer: StarRenderer
+    private let constellationLineRenderer: ConstellationLineRenderer
+    private let constellationBorderRenderer: ConstellationBorderRenderer
+    private let constellationLabelRenderer: ConstellationLabelRenderer
     private let h3GridRenderer: H3GridRenderer
     private let crosshairRenderer: CrosshairRenderer
     private let triangleIndicatorRenderer: TriangleIndicatorRenderer
@@ -73,14 +82,19 @@ class Renderer: NSObject, MTKViewDelegate {
     // Selected star for crosshair display
     private var selectedStar: Star?
 
-    init?(
+    init(
         metalKitView: MTKView,
         starManager: any StarManaging
-    ) {
+    ) throws {
         self.starManager = starManager
-        self.device = metalKitView.device!
+        guard let device = metalKitView.device else {
+            throw RendererError.metalDeviceUnavailable
+        }
+        self.device = device
 
-        guard let queue = self.device.makeCommandQueue() else { return nil }
+        guard let queue = device.makeCommandQueue() else {
+            throw RendererError.commandQueueCreationFailed
+        }
         self.commandQueue = queue
         metalKitView.colorPixelFormat = MTLPixelFormat.bgra8Unorm_srgb
         metalKitView.sampleCount = 1
@@ -88,16 +102,51 @@ class Renderer: NSObject, MTKViewDelegate {
         // Initialize camera system
         self.camera = Camera()
 
-        let depthStencilTextures = allocateDepthStencilTextures(device: self.device, metalKitView: metalKitView)
+        let depthStencilTextures = allocateDepthStencilTextures(device: device, metalKitView: metalKitView)
         self.depthTexture = depthStencilTextures.depthTexture
         self.stencilTexture = depthStencilTextures.stencilTexture
 
         // Initialize sub-renderers
-        self.skyboxRenderer = SkyboxRenderer(device: self.device, view: metalKitView)
-        self.starRenderer = StarRenderer(device: self.device, view: metalKitView, starManager: starManager)
-        self.h3GridRenderer = H3GridRenderer(device: self.device, view: metalKitView)
-        self.crosshairRenderer = CrosshairRenderer(device: self.device, view: metalKitView)
-        self.triangleIndicatorRenderer = TriangleIndicatorRenderer(device: self.device, view: metalKitView)
+        do {
+            self.skyboxRenderer = try SkyboxRenderer(device: device, view: metalKitView)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "SkyboxRenderer", underlying: error)
+        }
+        do {
+            self.starRenderer = try StarRenderer(device: device, view: metalKitView, starManager: starManager)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "StarRenderer", underlying: error)
+        }
+        do {
+            self.constellationLineRenderer = try ConstellationLineRenderer(device: device, view: metalKitView, starManager: starManager)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "ConstellationLineRenderer", underlying: error)
+        }
+        do {
+            self.constellationBorderRenderer = try ConstellationBorderRenderer(device: device, view: metalKitView, starManager: starManager)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "ConstellationBorderRenderer", underlying: error)
+        }
+        do {
+            self.constellationLabelRenderer = try ConstellationLabelRenderer(device: device, view: metalKitView, starManager: starManager)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "ConstellationLabelRenderer", underlying: error)
+        }
+        do {
+            self.h3GridRenderer = try H3GridRenderer(device: device, view: metalKitView)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "H3GridRenderer", underlying: error)
+        }
+        do {
+            self.crosshairRenderer = try CrosshairRenderer(device: device, view: metalKitView)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "CrosshairRenderer", underlying: error)
+        }
+        do {
+            self.triangleIndicatorRenderer = try TriangleIndicatorRenderer(device: device, view: metalKitView)
+        } catch {
+            throw RendererError.subrendererInitializationFailed(component: "TriangleIndicatorRenderer", underlying: error)
+        }
 
 #if os(macOS) || targetEnvironment(simulator)
         metalKitView.framebufferOnly = false
@@ -184,6 +233,25 @@ class Renderer: NSObject, MTKViewDelegate {
         return false
     }
 
+    public var areConstellationBordersVisible: Bool {
+        get { constellationBorderRenderer.isVisible }
+        set { constellationBorderRenderer.isVisible = newValue }
+    }
+
+    public var areConstellationLinesVisible: Bool {
+        get { constellationLineRenderer.isVisible }
+        set { constellationLineRenderer.isVisible = newValue }
+    }
+    
+    public var areConstellationLabelsVisible: Bool {
+        get { constellationLabelRenderer.isVisible }
+        set { constellationLabelRenderer.isVisible = newValue }
+    }
+    
+    // MARK: - Debug viewport control
+    
+    public var isDebugViewportVisible: Bool = false
+
     func draw(in view: MTKView) {
         // This method is kept for compatibility but actual rendering
         // happens through CAMetalDisplayLink when available
@@ -209,9 +277,7 @@ class Renderer: NSObject, MTKViewDelegate {
         }
 
         if let commandBuffer = commandQueue.makeCommandBuffer() {
-
-            let semaphore = inFlightSemaphore
-            commandBuffer.addCompletedHandler { _ in
+            commandBuffer.addCompletedHandler { [semaphore = inFlightSemaphore] _ in
                 semaphore.signal()
             }
 
@@ -260,6 +326,22 @@ class Renderer: NSObject, MTKViewDelegate {
                     time: starTime,
                     fov: camera.currentFOV
                 )
+                constellationLineRenderer.draw(
+                    renderEncoder: renderEncoder,
+                    projectionMatrix: projectionMatrix,
+                    viewMatrix: viewMatrix,
+                    fovDegrees: camera.currentFOV
+                )
+                constellationBorderRenderer.draw(
+                    renderEncoder: renderEncoder,
+                    projectionMatrix: projectionMatrix,
+                    viewMatrix: viewMatrix
+                )
+                constellationLabelRenderer.draw(
+                    renderEncoder: renderEncoder,
+                    projectionMatrix: projectionMatrix,
+                    viewMatrix: viewMatrix
+                )
                 
                 // Draw crosshair for selected star (on top)
                 crosshairRenderer.draw(
@@ -295,6 +377,9 @@ class Renderer: NSObject, MTKViewDelegate {
         // Update camera's aspect ratio
         camera.updateAspectRatio(aspect)
         h3GridRenderer.drawableSizeWillChange(to: size)
+        constellationLineRenderer.drawableSizeWillChange(to: size)
+        constellationBorderRenderer.drawableSizeWillChange(to: size)
+        constellationLabelRenderer.drawableSizeWillChange(to: size)
     }
 }
 
@@ -303,15 +388,18 @@ class Renderer: NSObject, MTKViewDelegate {
 extension Renderer: CameraDelegate {
     func camera(_ camera: Camera, didUpdateViewMatrix viewMatrix: matrix_float4x4) {
         self.viewMatrix = viewMatrix
+        metalViewController?.updateDebugInfoIfNeeded()
     }
 
     func camera(_ camera: Camera, didUpdateProjectionMatrix projectionMatrix: matrix_float4x4) {
         self.projectionMatrix = projectionMatrix
+        metalViewController?.updateDebugInfoIfNeeded()
     }
 
     func camera(_ camera: Camera, didUpdateFOV fov: Float) {
         // Optionally handle FOV changes for UI updates or other purposes
         print("Camera FOV updated to: \(fov)°")
+        metalViewController?.updateDebugInfoIfNeeded()
     }
     
     func camera(_ camera: Camera, didTapAt location: CGPoint, in viewSize: CGSize) {

@@ -27,17 +27,27 @@ final class H3GridRenderer {
     // Visibility toggle
     var isVisible: Bool = false
 
-    init(device: MTLDevice, view: MTKView) {
+    enum H3GridRendererError: Error {
+        case defaultLibraryUnavailable
+        case vertexFunctionMissing(String)
+        case fragmentFunctionMissing(String)
+        case pipelineCreationFailed(underlying: Error)
+        case depthStateCreationFailed
+    }
+
+    init(device: MTLDevice, view: MTKView) throws {
         self.device = device
 
         // Pipeline
-        self.pipelineState = try! H3GridRenderer.buildPipeline(device: device, view: view)
+        self.pipelineState = try H3GridRenderer.buildPipeline(device: device, view: view)
 
         // Depth: test but don't write
         let ds = MTLDepthStencilDescriptor()
         ds.depthCompareFunction = .lessEqual
         ds.isDepthWriteEnabled = false
-        guard let depth = device.makeDepthStencilState(descriptor: ds) else { fatalError("grid depth state") }
+        guard let depth = device.makeDepthStencilState(descriptor: ds) else {
+            throw H3GridRendererError.depthStateCreationFailed
+        }
         self.depthState = depth
     }
 
@@ -59,8 +69,10 @@ final class H3GridRenderer {
 
         // Project viewport corners to world space to find visible H3 cells
         let viewportCorners = [
-            simd_float3(-1, -1, 1), simd_float3(1, -1, 1),
-            simd_float3(1, 1, 1), simd_float3(-1, 1, 1)
+            simd_float3(-1, -1, 1), // Bottom-Left
+            simd_float3(1, -1, 1),  // Bottom-Right
+            simd_float3(1, 1, 1),   // Top-Right
+            simd_float3(-1, 1, 1)   // Top-Left
         ]
         let invMVP = (projectionMatrix * viewMatrix).inverse
         let worldCorners = viewportCorners.map {
@@ -78,7 +90,15 @@ final class H3GridRenderer {
 
         var allLines: [LineInstance] = []
         for res in resolutionsToShow {
-            let cells = H3Utils.h3Cells(inViewport: latLngVertices, resolution: res)
+            let cells = H3Utils.h3Cells(
+                inViewport: Viewport(
+                    topLeft: latLngVertices[3],
+                    topRight: latLngVertices[2],
+                    bottomLeft: latLngVertices[0],
+                    bottomRight: latLngVertices[1]
+                ),
+                resolution: res
+            )
             let lines = gridLines(forCells: cells)
             allLines.append(
                 contentsOf: lines.map { line in
@@ -121,17 +141,26 @@ final class H3GridRenderer {
         renderEncoder.setVertexBytes(&colorArray, length: MemoryLayout<SIMD4<Float>>.stride * colorArray.count, index: 6)
         renderEncoder.setVertexBytes(&numColors, length: MemoryLayout<UInt32>.size, index: 7)
 
-        renderEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4, instanceCount: allLines.count)
+        // Use line primitives for clean, thin lines (2 vertices per line)
+        renderEncoder.drawPrimitives(type: .line, vertexStart: 0, vertexCount: 2, instanceCount: allLines.count)
         
         renderEncoder.popDebugGroup()
     }
 
     private static func buildPipeline(device: MTLDevice, view: MTKView) throws -> MTLRenderPipelineState {
-        let library = device.makeDefaultLibrary()
+        guard let library = device.makeDefaultLibrary() else {
+            throw H3GridRendererError.defaultLibraryUnavailable
+        }
         let desc = MTLRenderPipelineDescriptor()
         desc.label = "H3 Grid Pipeline"
-        desc.vertexFunction = library?.makeFunction(name: "h3line_vertex")
-        desc.fragmentFunction = library?.makeFunction(name: "h3line_fragment")
+        guard let vertexFunction = library.makeFunction(name: "h3line_vertex") else {
+            throw H3GridRendererError.vertexFunctionMissing("h3line_vertex")
+        }
+        guard let fragmentFunction = library.makeFunction(name: "h3line_fragment") else {
+            throw H3GridRendererError.fragmentFunctionMissing("h3line_fragment")
+        }
+        desc.vertexFunction = vertexFunction
+        desc.fragmentFunction = fragmentFunction
         desc.colorAttachments[0].pixelFormat = view.colorPixelFormat
 #if os(macOS) || targetEnvironment(simulator)
         desc.depthAttachmentPixelFormat = .depth32Float_stencil8
@@ -149,6 +178,10 @@ final class H3GridRenderer {
             att.sourceAlphaBlendFactor = .one
             att.destinationAlphaBlendFactor = .oneMinusSourceAlpha
         }
-        return try device.makeRenderPipelineState(descriptor: desc)
+        do {
+            return try device.makeRenderPipelineState(descriptor: desc)
+        } catch {
+            throw H3GridRendererError.pipelineCreationFailed(underlying: error)
+        }
     }
 }

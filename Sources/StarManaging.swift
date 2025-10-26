@@ -55,6 +55,9 @@ public protocol StarManaging: Sendable {
     /// Get constellation connection lines
     func constellationLines(for constellation: Constellation) -> [Constellation.Line]
     
+    /// Get border segments that outline a constellation
+    func constellationBorders(for constellation: Constellation) -> [Constellation.BorderSegment]
+
     /// Get neighboring constellations for a given constellation
     func neighbors(for constellation: Constellation) -> Set<Constellation>
 }

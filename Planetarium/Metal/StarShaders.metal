@@ -73,7 +73,8 @@ vertex StarVaryings star_vertex(
     const float b = 0.1;
     float h1 = fract(sin(phase * 12.9898 + 78.233) * 43758.5453);
     float speed = 5.0 + 5.0 * h1; // ~5 to 10 Hz
-    float t = time * speed;
+    // Cycle every 60s to avoid runaway at large time values
+    float t = fmod(time, 60) * speed;
     float tb = floor(t);
     float tf = fract(t);
     float u0 = fract(sin((tb + phase * 17.0) * 12.9898 + 78.233) * 43758.5453);
