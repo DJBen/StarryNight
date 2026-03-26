@@ -12,6 +12,18 @@ High performance star catalog and constellation data layer backed by SQLite and 
 - **Star Names**: Proper names, Bayer-Flamsteed designations, and catalog numbers
 - **Spectral Classification**: Stellar spectral types for accurate color rendering
 
+## Planetarium
+
+![Planetarium Demo](Planetarium/Planetarium.gif)
+
+**Planetarium** is an interactive, Metal-driven star viewer built on top of StarryNight. It turns the star catalog into an immersive real-time planetarium experience for iOS and macOS.
+
+- **Pan, zoom, and animate** across the night sky with momentum-based camera controls
+- **Spectral-accurate star rendering** — stars are color-tinted by spectral class and scaled by brightness magnitude, rendered as instanced billboard quads
+- **Constellation overlays** — connection lines, IAU boundary borders, and MSDF-rendered name labels
+- **Star selection** — tap any star to see detailed info, with a crosshair indicator and off-screen navigation arrows to guide you to selected stars outside the viewport
+- **Adaptive H3 spatial loading** — only the stars visible in the current viewport are rendered, keeping frame rates smooth even with millions of catalog entries
+
 ## Quick Start
 
 ### Swift Package Manager Integration
