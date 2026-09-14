@@ -9,7 +9,7 @@
 import Foundation
 import Ch3
 
-public struct Constellation: Hashable, Identifiable, @unchecked Sendable {
+public struct Constellation: Hashable, Identifiable, Sendable {
     public struct Line: CustomStringConvertible, Sendable {
         public let star1Id: Int
         public let star2Id: Int

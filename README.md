@@ -162,3 +162,50 @@ The stars DB comes from [HYG database](https://www.astronexus.com/projects/hyg),
 ## License
 
 StarryNight is available under the MIT license. See the LICENSE file for more info.
+
+## Swift concurrency (3.2.0)
+
+Reuse a `StarCatalog` actor. It opens the bundled database read-only on its own
+executor, and returns checked `Sendable` values:
+
+```swift
+let catalog = StarCatalog()
+let sky = try await catalog.snapshot(maximumMagnitude: 6)
+// Draw using sky.stars, sky.constellations, sky.lines and sky.starsByID.
+// Endpoints include stars fainter than the display limit.
+let selected = sky.closestStar(to: direction, maximumAngularDistance: 0.05)
+let info = try await catalog.starInfo(forID: selectedID)
+```
+
+Snapshot rendering and hit testing require no database access. The actor retains
+one snapshot; callers can retain others as needed. Cancellation is checked before
+and after snapshot loading; an in-flight synchronous SQLite query is allowed to
+finish. The synchronous `StarManaging` API remains available for existing clients;
+its final `StarManager` serializes entire operations (including cursor iteration
+and bounded caches) with a recursive lock. Avoid synchronous queries on the main
+actor. Legacy query methods retain their existing empty/nil-on-error behavior.
+
+### Database maintenance
+
+After rebuilding the HYG tables, run `python3 scripts/optimize_database.py` before
+shipping the resource. This adds ID, catalog, constellation and compound H3/magnitude
+indexes, gathers planner statistics and validates database integrity. Version
+3.2.0 uses `PRAGMA user_version = 30200`; stellar source measurements are unchanged.
+
+### Review and validation
+
+- Added missing unique star ID indexes to prevent full scans for line endpoints.
+- Batch-load constellation endpoints and cache immutable rendering snapshots.
+- Open the bundled SQLite resource read-only; no startup migration or writes.
+- Protect the legacy connection and caches across concurrent callers.
+- Replace unchecked sendability on star/constellation values with compiler checks.
+- Include magnitude boundaries consistently across all H3 tables.
+- Correct cone selection across cell boundaries and poles. The old implementation
+  passed degrees to H3 and restricted searches to a single cell. Direct legacy cone
+  searches now scan magnitude-filtered candidates; use snapshots for repeated taps.
+- Tests cover query plans, read-only enforcement, resource integrity, endpoints,
+  boundaries, concurrent callers, cancellation and hit testing.
+
+A local warm-cache comparison of 500 ID lookups in `stars_h3_2` (five repetitions,
+median) took 752.55 ms before indexing and 2.07 ms after indexing. This is a query
+microbenchmark, not a claim about end-to-end frame rate.

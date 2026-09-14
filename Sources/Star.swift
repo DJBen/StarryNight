@@ -10,7 +10,7 @@ import Foundation
 import SQLite
 
 /// Core star data structure containing essential rendering information
-public struct Star: Hashable, Equatable, @unchecked Sendable {
+public struct Star: Hashable, Equatable, Sendable {
     /// Unique identifier for the star
     public let id: Int
     /// The star's apparent magnitude

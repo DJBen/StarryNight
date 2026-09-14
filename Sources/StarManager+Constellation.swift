@@ -7,6 +7,9 @@ extension StarManager {
     
     /// Get all constellations
     public func allConstellations() -> Set<Constellation> {
+        queryLock.lock()
+        defer { queryLock.unlock() }
+        if let cachedConstellations { return cachedConstellations }
         do {
             var constellations = Set<Constellation>()
             for row in try db.prepare(Tables.constellations) {
@@ -22,6 +25,7 @@ extension StarManager {
                     constellations.insert(con)
                 }
             }
+            cachedConstellations = constellations
             return constellations
         } catch {
             print("Error fetching all constellations: \(error)")
@@ -31,6 +35,8 @@ extension StarManager {
     
     /// Get a constellation by name
     public func constellation(named name: String) -> Constellation? {
+        queryLock.lock()
+        defer { queryLock.unlock() }
         let query = Tables.constellations.select(
             Tables.id,
             Tables.constellationName,
@@ -43,6 +49,8 @@ extension StarManager {
     
     /// Get a constellation by IAU abbreviation
     public func constellation(iau: String) -> Constellation? {
+        queryLock.lock()
+        defer { queryLock.unlock() }
         let query = Tables.constellations.select(
             Tables.id,
             Tables.constellationName,
@@ -55,6 +63,9 @@ extension StarManager {
 
     /// Get constellation connection lines from the constellation_lines table
     public func constellationLines(for constellation: Constellation) -> [Constellation.Line] {
+        queryLock.lock()
+        defer { queryLock.unlock() }
+        if let lines = cachedLines[constellation.id] { return lines }
         // Query the constellation_lines table for this constellation's id
         let linesTable = Table("constellation_lines")
         let dbConstellationId = Expression<Int>("constellation_id")
@@ -71,11 +82,14 @@ extension StarManager {
         } catch {
             print("Error fetching constellation lines for \(constellation.iAUName): \(error)")
         }
+        cachedLines[constellation.id] = connectionLines
         return connectionLines
     }
 
     /// Get border segments that outline the provided constellation
     public func constellationBorders(for constellation: Constellation) -> [Constellation.BorderSegment] {
+        queryLock.lock()
+        defer { queryLock.unlock() }
         let bordersTable = Table("constellation_borders")
         let dbCon = Expression<String>("con")
         let dbOppositeCon = Expression<String?>("opposite_con")
@@ -145,12 +159,14 @@ extension StarManager {
 
     /// Get neighboring constellations for a given constellation
     public func neighbors(for constellation: Constellation) -> Set<Constellation> {
+        queryLock.lock()
+        defer { queryLock.unlock() }
         // Define the constellation borders table structure
         let fullBorders = Table("constellation_borders")
         let dbBorderCon = SQLite.Expression<String>("con")
         let dbOppoCon = SQLite.Expression<String>("opposite_con")
         
-        var query = fullBorders.select(dbOppoCon)
+        var query = fullBorders.select(distinct: dbOppoCon)
         if constellation.iAUName == "Ser" {
             query = query.filter(dbBorderCon == "Ser1" || dbBorderCon == "Ser2")
         } else {
@@ -201,6 +217,8 @@ extension StarManager {
 
 extension StarManager {
     public func displayCenter(for constellation: Constellation) -> SIMD3<Double>? {
+        queryLock.lock()
+        defer { queryLock.unlock() }
         return constellationCenter[constellation.iAUName]
     }
 

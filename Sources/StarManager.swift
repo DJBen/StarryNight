@@ -11,8 +11,15 @@ import simd
 import Ch3
 
 /// Star database manager responsible for all star-related I/O operations
-public class StarManager: StarManaging, @unchecked Sendable {
+public final class StarManager: StarManaging, @unchecked Sendable {
+    // Every query and cache access is protected for the entire cursor lifetime.
+    // Recursive because composite operations call other public query methods.
+    let queryLock = NSRecursiveLock()
     let db: Connection
+    var cachedBrightest: [Star]?
+    var cachedConstellations: Set<Constellation>?
+    var cachedLines: [Int: [Constellation.Line]] = [:]
+    var cachedStars: [Int: Star] = [:]
     
     // Table definitions
     struct Tables {
@@ -160,22 +167,27 @@ public class StarManager: StarManaging, @unchecked Sendable {
     
     public init() throws {
         guard let dbPath = Bundle.module.path(forResource: "stars", ofType: "sqlite3") else {
-            fatalError("Unable to find stars.sqlite3 in bundle")
+            throw CocoaError(.fileNoSuchFile)
         }
         
-        self.db = try Connection(dbPath)
+        self.db = try Connection(dbPath, readonly: true)
     }
     
     // MARK: - Stars API
 
     /// Get the brightest stars
     public func brightestStars() -> [Star] {
+        queryLock.lock()
+        defer { queryLock.unlock() }
+        if let cachedBrightest { return cachedBrightest }
         let query = Tables.starsBrightest300
             .order(Tables.mag.asc)
         
         do {
             let rows = try db.prepare(query)
-            return rows.map { createStar(from: $0) }
+            let stars = rows.map { createStar(from: $0) }
+            cachedBrightest = stars
+            return stars
         } catch {
             print("Error fetching brightest stars: \(error)")
             return []
@@ -184,6 +196,8 @@ public class StarManager: StarManaging, @unchecked Sendable {
     
     /// Get stars up to a maximum magnitude, starting with brightest stars and falling back to H3 levels if needed
     public func stars(maximumMagnitude: Double) -> [Star] {
+        queryLock.lock()
+        defer { queryLock.unlock() }
         var allStars: [Star] = []
         
         // First, get stars from brightest 300 that meet the magnitude criteria
@@ -240,6 +254,8 @@ public class StarManager: StarManaging, @unchecked Sendable {
     
     /// Get stars for a specific H3 resolution level
     public func stars(forH3Level level: Int, maximumMagnitude magCutoff: Double? = nil) -> [Star] {
+        queryLock.lock()
+        defer { queryLock.unlock() }
         let table: Table
         
         switch level {
@@ -257,7 +273,7 @@ public class StarManager: StarManaging, @unchecked Sendable {
         var query = table.select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
         
         if let magCutoff = magCutoff {
-            query = query.filter(Tables.mag < magCutoff)
+            query = query.filter(Tables.mag <= magCutoff)
         }
         
         query = query.order(Tables.mag.asc)
@@ -273,6 +289,8 @@ public class StarManager: StarManaging, @unchecked Sendable {
     
     /// Get stars within a specific H3 cell
     public func stars(inH3Cell h3Index: H3Index, maximumMagnitude magCutoff: Double? = nil) -> [Star] {
+        queryLock.lock()
+        defer { queryLock.unlock() }
         let level = getResolution(h3Index)
         let table: Table
         let h3Column: SQLite.Expression<String>
@@ -298,7 +316,7 @@ public class StarManager: StarManaging, @unchecked Sendable {
             .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
         
         if let magCutoff = magCutoff {
-            query = query.filter(Tables.mag < magCutoff)
+            query = query.filter(Tables.mag <= magCutoff)
         }
         
         query = query.order(Tables.mag.asc)
@@ -313,102 +331,25 @@ public class StarManager: StarManaging, @unchecked Sendable {
     }
     
     /// Find the closest star to a given cartesian coordinate
-    public func closeStars(
-        around coordinate: SIMD3<Double>,
-        maximumAngularDistance angularDistance: Double,
-        maximumMagnitude magCutoff: Double? = nil,
-    ) -> [Star] {
-        // Convert cartesian coordinate to latitude/longitude
-        let latLngDeg = cartesianToLatLon(coordinate)
-        
-        // Convert to LatLng in radians for H3
-        let geoCoord = LatLng(lat: latLngDeg.lat * .pi / 180.0, lng: latLngDeg.lng * .pi / 180.0)
-
-        // Get H3 indices for different resolution levels
-        let h3_0_index = withUnsafePointer(to: geoCoord) { coordPtr in
-            var out: H3Index = 0
-            _ = latLngToCell(coordPtr, 0, &out)
-            return out
-        }
-        let h3_1_index = withUnsafePointer(to: geoCoord) { coordPtr in
-            var out: H3Index = 0
-            _ = latLngToCell(coordPtr, 1, &out)
-            return out
-        }
-        let h3_2_index = withUnsafePointer(to: geoCoord) { coordPtr in
-            var out: H3Index = 0
-            _ = latLngToCell(coordPtr, 2, &out)
-            return out
-        }
-        
-        // Convert H3 indices to strings for database queries
-        let h3_0_string = h3IndexToString(h3_0_index)
-        let h3_1_string = h3IndexToString(h3_1_index)
-        let h3_2_string = h3IndexToString(h3_2_index)
-        
-        var closeStars: [Star] = []
-        var minimumDistance = Double.infinity
-        
-        // Helper function to calculate distance and find closest star
-        func checkStarsFromQuery(_ query: QueryType) {
-            do {
-                let rows = try db.prepare(query)
-                for row in rows {
-                    let star = createStar(from: row)
-                    let distance = simd_length(normalize(coordinate) - normalize(star.coordinate))
-                    let actualAngularDistance = 2 * asin(distance / 2)
-                    if actualAngularDistance > angularDistance {
-                        continue
-                    }
-                    
-                    if distance < minimumDistance {
-                        closeStars.append(star)
-                    }
-                }
-            } catch {
-                print("Error querying stars: \(error)")
+    /// Complete spherical cone search, including H3 cell boundaries and the poles.
+    /// For repeated hit testing, use an immutable SkySnapshot instead.
+    public func closeStars(around coordinate: SIMD3<Double>, maximumAngularDistance angularDistance: Double, maximumMagnitude magCutoff: Double? = nil) -> [Star] {
+        queryLock.lock()
+        defer { queryLock.unlock() }
+        guard coordinate.x.isFinite, coordinate.y.isFinite, coordinate.z.isFinite,
+              simd_length_squared(coordinate) > 0, angularDistance.isFinite,
+              angularDistance >= 0 else { return [] }
+        let direction = simd_normalize(coordinate)
+        let threshold = cos(min(angularDistance, .pi))
+        return stars(maximumMagnitude: magCutoff ?? .infinity)
+            .filter { simd_dot(direction, simd_normalize($0.coordinate)) >= threshold - 1e-14 }
+            .sorted {
+                let lhs = simd_dot(direction, simd_normalize($0.coordinate))
+                let rhs = simd_dot(direction, simd_normalize($1.coordinate))
+                return lhs == rhs ? $0.id < $1.id : lhs > rhs
             }
-        }
-        
-        // 1. Start with brightest 300 stars
-        var query = Tables.starsBrightest300
-            .filter(Tables.h3_0 == h3_0_string)
-            .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
-        if let magCutoff = magCutoff {
-            query = query.filter(Tables.mag < magCutoff)
-        }
-        checkStarsFromQuery(query)
-
-        // 2. Check H3 level 0 with H3 filter
-        var h3_0_query = Tables.starsH3_0
-            .filter(Tables.h3_0 == h3_0_string)
-            .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
-        if let magCutoff = magCutoff {
-            h3_0_query = h3_0_query.filter(Tables.mag < magCutoff)
-        }
-        checkStarsFromQuery(h3_0_query)
-        
-        // 2. Check H3 level 1 with H3 filter
-        var h3_1_query = Tables.starsH3_1
-            .filter(Tables.h3_1 == h3_1_string)
-            .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
-        if let magCutoff = magCutoff {
-            h3_1_query = h3_1_query.filter(Tables.mag < magCutoff)
-        }
-        checkStarsFromQuery(h3_1_query)
-
-        // 3. Check H3 level 2 with H3 filter
-        var h3_2_query = Tables.starsH3_2
-            .filter(Tables.h3_2 == h3_2_string)
-            .select(Tables.id, Tables.mag, Tables.x, Tables.y, Tables.z, Tables.spectClass)
-        if let magCutoff = magCutoff {
-            h3_2_query = h3_2_query.filter(Tables.mag < magCutoff)
-        }
-        checkStarsFromQuery(h3_2_query)
-
-        return closeStars
     }
-    
+
     // MARK: - Private Helper Functions
     
     /// Convert cartesian coordinates to latitude/longitude
@@ -446,6 +387,8 @@ public class StarManager: StarManaging, @unchecked Sendable {
     
     /// Search for stars by name or catalog identifier
     public func searchStars(matching name: String) -> [Star] {
+        queryLock.lock()
+        defer { queryLock.unlock() }
         if name.isEmpty {
             return []
         }
@@ -485,6 +428,9 @@ public class StarManager: StarManaging, @unchecked Sendable {
     
     /// Get a specific star by ID
     public func star(withId id: Int) -> Star? {
+        queryLock.lock()
+        defer { queryLock.unlock() }
+        if let star = cachedStars[id] { return star }
         // Try to find in brightest stars first
         let brightestQuery = Tables.starsBrightest300.filter(Tables.id == id)
         if let row = try? db.pluck(brightestQuery) {
@@ -512,6 +458,8 @@ public class StarManager: StarManaging, @unchecked Sendable {
     
     /// Get detailed information for a star
     public func starInfo(forId id: Int) -> StarInfo? {
+        queryLock.lock()
+        defer { queryLock.unlock() }
         // Join with constellations table to get full constellation information
         let query = Tables.starsInfo
             .join(Tables.constellations, on: Tables.starsInfo[Tables.con] == Tables.constellations[Tables.iau])
@@ -530,6 +478,8 @@ public class StarManager: StarManaging, @unchecked Sendable {
     
     /// Get star with detailed information loaded
     public func starWithInfo(id: Int) -> Star? {
+        queryLock.lock()
+        defer { queryLock.unlock() }
         guard var star = star(withId: id) else { return nil }
         star.info = starInfo(forId: id)
         return star
@@ -537,7 +487,7 @@ public class StarManager: StarManaging, @unchecked Sendable {
     
     // MARK: - Private Helpers
     
-    private func createStar(from row: Row) -> Star {
+    func createStar(from row: Row) -> Star {
         let id = try! row.get(Tables.id)
         let magnitude = try! row.get(Tables.mag)
         let x = try! row.get(Tables.x)
@@ -546,7 +496,10 @@ public class StarManager: StarManaging, @unchecked Sendable {
         let spectralClass = try! row.get(Tables.spectClass)
         
         let coordinate = SIMD3<Double>(x, y, z)
-        return Star(id: id, magnitude: magnitude, coordinate: coordinate, spectralClass: spectralClass)
+        let star = Star(id: id, magnitude: magnitude, coordinate: coordinate, spectralClass: spectralClass)
+        // Bound point-lookup caching; full magnitude queries need not retain the catalog.
+        if cachedStars.count < 4096 { cachedStars[id] = star }
+        return star
     }
     
     private func createStarInfo(from row: Row) -> StarInfo {
